@@ -239,6 +239,21 @@ input[type=range]{accent-color:var(--gold);vertical-align:middle}
 .badge.locked .ic{filter:grayscale(1);background:var(--line)}
 .rec{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid var(--line);font-size:14px}
 .rec span{color:var(--muted)}
+
+/* inversions */
+.mkb{display:block;margin:8px auto 4px;max-width:100%}
+.icards{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0}
+.icard{min-width:150px;padding:12px;border-radius:12px;background:var(--panel2);border:1px solid var(--line2);text-align:center;transition:all .15s}
+.icard .r{font-size:13px;font-weight:700;color:var(--gold)}
+.icard .n{font-size:20px;font-weight:750}
+.icard .t{font-size:11.5px;color:var(--muted)}
+.icard.done{background:var(--in-dim);border-color:var(--in)}
+.icard.cur{border-color:var(--gold);box-shadow:0 0 0 3px var(--gold-dim);transform:translateY(-3px)}
+.icard.demo{border-color:var(--blue);background:var(--blue-dim)}
+.picker{display:inline-flex;flex-wrap:wrap;gap:4px}
+.picker button{padding:5px 10px;font-weight:650}
+.picker button.on{background:var(--gold);color:#1a1405;border-color:var(--gold)}
+.pcard .inv{font-size:10.5px;color:var(--muted)}
 </style>
 </head>
 <body>
@@ -266,6 +281,7 @@ input[type=range]{accent-color:var(--gold);vertical-align:middle}
       <button data-mode="explore" class="on">Explore</button>
       <button data-mode="scales">Scales</button>
       <button data-mode="chords">Chords</button>
+      <button data-mode="inversions">Inversions</button>
       <button data-mode="progressions">Progressions</button>
       <button data-mode="loop">Loop challenge</button>
       <button data-mode="quiz">Theory quiz</button>
@@ -436,7 +452,9 @@ function identify(midis, key) {
     const t = TPL.find(t => t.core === core && sameSet(t.iv, rel));
     if (t) {
       const name = pretty(spellPc(r, key)) + t.suf + (bass !== r ? '/' + pretty(spellPc(bass, key)) : '');
-      return { type: 'chord', pcs, rootPc: r, tpl: t, bassPc: bass, name, roman: romanFor(r, t, key), sub: t.q, notes: names };
+      const biv = mod(bass - r, 12);
+      const invName = biv === 0 ? 'root position' : [3, 4].includes(biv) ? '1st inversion' : [6, 7, 8].includes(biv) ? '2nd inversion' : [9, 10, 11].includes(biv) ? '3rd inversion' : '';
+      return { type: 'chord', pcs, rootPc: r, tpl: t, bassPc: bass, name, roman: romanFor(r, t, key), sub: t.q, notes: names, invName };
     }
   }
   return { type: 'cluster', pcs, name: names.join(' '), notes: names };
@@ -468,7 +486,8 @@ let store = { keys: {}, settings: {} };
 try { const s = JSON.parse(localStorage.getItem(STORE_KEY)); if (s && s.keys) store = s; } catch (e) {}
 const save = () => { try { localStorage.setItem(STORE_KEY, JSON.stringify(store)); } catch (e) {} };
 const settings = Object.assign({ nextDir: 'cw', autoNext: true, sevenths: false, showNames: true, showHints: true, quizScope: 'all', minorVariant: 'natural', prog: 0, echo: false, sound: true,
-  loopBpm: 60, loopBpc: 4, loopSpeedUp: false, metronome: true, loopChangeAfter: 0, loopAutoRestart: true }, store.settings);
+  loopBpm: 60, loopBpc: 4, loopSpeedUp: false, metronome: true, loopChangeAfter: 0, loopAutoRestart: true,
+  invMode: 'shapes', invClose: true, loopSmooth: false }, store.settings);
 const setSetting = (k, v) => { settings[k] = v; store.settings = settings; save(); };
 const kstat = id => (store.keys[id] ||= { scaleRuns: 0, scaleBest: null, chordRight: 0, chordWrong: 0, progRuns: 0 });
 function mastery(id) {
@@ -566,7 +585,7 @@ function click(at, accent) {
    ================================================================ */
 const ymd = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 const today = () => ymd(new Date());
-const game = Object.assign({ xp: 0, goal: 50, days: {}, badges: {}, records: {}, keysDone: {}, bestLoops: 0, bestRow: 0, maxBpm: 0, bestPerfect: 0, quizBest: 0, piano: false }, store.game);
+const game = Object.assign({ xp: 0, goal: 50, days: {}, badges: {}, records: {}, keysDone: {}, bestLoops: 0, bestRow: 0, maxBpm: 0, bestPerfect: 0, quizBest: 0, piano: false, invRight: 0, smoothDone: 0, climbDone: 0 }, store.game);
 store.game = game;
 function levelInfo(xp) { let L = 1, need = 100, rest = xp; while (rest >= need) { rest -= need; L++; need = 100 + (L - 1) * 50; } return { L, into: rest, need }; }
 function dayStreak() {
@@ -610,7 +629,10 @@ const BADGES = [
   { id: 'minor',    ic: '🌙', name: 'Dark side',         desc: 'Finish a progression in all 12 minor keys',  test: () => countKeys('minor', id => game.keysDone[id]) === 12 },
   { id: 'scales',   ic: '🪜', name: 'Scale climber',     desc: 'Clean scale run in all 12 major keys',       test: () => countKeys('major', id => store.keys[id]?.scaleBest) === 12 },
   { id: 'chords50', ic: '🧩', name: 'Chord collector',   desc: '50 chords right in the chord drill',         test: () => Object.values(store.keys).reduce((a, s) => a + s.chordRight, 0) >= 50 },
-  { id: 'quiz10',   ic: '🤓', name: 'Theory nerd',       desc: '10 quiz answers right in a row',             test: () => game.quizBest >= 10 },
+  { id: 'climb',    ic: '🧗', name: 'Climber',           desc: 'Climb the inversions of all 7 chords in a key', test: () => game.climbDone >= 1 },
+  { id: 'inv30',    ic: '🙃', name: 'Upside down',       desc: '30 inversions right in the inversion drill', test: () => game.invRight >= 30 },
+  { id: 'smooth5',  ic: '🧈', name: 'Smooth operator',   desc: 'Play 5 progressions with smooth inversions', test: () => game.smoothDone >= 5 },
+  { id: 'quiz10',  ic: '🤓', name: 'Theory nerd',       desc: '10 quiz answers right in a row',             test: () => game.quizBest >= 10 },
   { id: 'streak3',  ic: '🔥', name: 'On fire',           desc: 'Hit your daily goal 3 days in a row',        test: () => dayStreak() >= 3 },
   { id: 'streak7',  ic: '📅', name: 'Week warrior',      desc: 'Hit your daily goal 7 days in a row',        test: () => dayStreak() >= 7 },
   { id: 'level5',   ic: '⭐', name: 'Rising star',       desc: 'Reach level 5',                              test: () => levelInfo(game.xp).L >= 5 },
@@ -769,7 +791,7 @@ function renderNowPlaying() {
   const id = identify([...held], key), el = $('#nowPlaying');
   if (!id) { el.innerHTML = '<span class="m">Play something…</span>'; return; }
   let s = id.name;
-  if (id.type === 'chord') s += ` <span class="m">· ${id.roman} in ${key.label} · ${id.notes.join(' ')}</span>`;
+  if (id.type === 'chord') s += ` <span class="m">· ${id.roman} in ${key.label}${id.invName ? ' · ' + id.invName : ''} · ${id.notes.join(' ')}</span>`;
   if (id.type === 'interval') s += ` <span class="m">· ${id.sub}</span>`;
   el.innerHTML = s;
 }
@@ -847,6 +869,7 @@ function renderCircle() {
     out.push(`<text class="c-big" y="-10">${chord.name}</text>`);
     out.push(`<text class="c-sub" y="20">${chord.type === 'chord' ? chord.roman : chord.sub || ''}</text>`);
     if (chord.type === 'chord') out.push(`<text class="c-small" y="40">${chord.sub}</text>`);
+    if (chord.type === 'chord' && chord.invName) out.push(`<text class="c-small" y="56">${chord.invName}</text>`);
   } else if (chord) {
     const deg = key.scale.findIndex(n => n.pc === chord.pcs[0]);
     out.push(`<text class="c-big" y="-6">${chord.name}</text>`);
@@ -1264,6 +1287,210 @@ const Quiz = {
   },
 };
 
+/* ---------- Inversions ---------- */
+const INV_NAMES = ['Root position', '1st inversion', '2nd inversion', '3rd inversion'];
+const TONE = ['root', '3rd', '5th', '7th'];
+// Close voicing of chord c with chord tone `inv` in the bass, bass note at or above `base`
+function invVoicing(c, inv, base = 60) {
+  const order = [...c.pcs.slice(inv), ...c.pcs.slice(0, inv)];
+  let m = base - 1;
+  return order.map(pc => { m++; while (mod(m, 12) !== pc) m++; return m; });
+}
+const toneName = (c, pc) => pretty(c.notes.find(n => n.pc === pc).name);
+const slashName = (c, inv) => inv ? `${c.name}/${toneName(c, c.pcs[inv])}` : c.name;
+const moveCost = (prev, v) => v.reduce((a, m) => a + Math.min(...prev.map(p => Math.abs(p - m))), 0);
+// Pick, for each chord, the inversion that moves the hand least from the previous chord
+function voiceLead(chords, start = 60) {
+  const out = []; let prev = null;
+  for (const c of chords) {
+    if (!prev) { prev = invVoicing(c, 0, start - 5); out.push({ chord: c, inv: 0, midis: prev }); continue; }
+    const lo = Math.min(...prev); let best = null;
+    for (let inv = 0; inv < c.pcs.length; inv++) for (let b = lo - 7; b <= lo + 7; b++) {
+      const v = invVoicing(c, inv, b), cost = moveCost(prev, v) + Math.abs(v[0] - start) * 0.15;
+      if (!best || cost < best.cost) best = { chord: c, inv, midis: v, cost };
+    }
+    prev = best.midis; out.push(best);
+  }
+  return out;
+}
+const pathCost = vs => vs.slice(1).reduce((a, v, i) => a + moveCost(vs[i], v), 0);
+// Tiny two-octave keyboard picture: bass note gold, other chord notes green
+function miniKb(midis) {
+  const lo = Math.floor(Math.min(...midis) / 12) * 12, hi = lo + (Math.max(...midis) - lo >= 24 ? 36 : 24) - 1, W = 11, H = 38;
+  const whites = []; for (let m = lo; m <= hi; m++) if (!isBlack(m)) whites.push(m);
+  const x = {}; whites.forEach((m, i) => x[m] = i * W);
+  const bass = Math.min(...midis), fill = m => m === bass ? '#f2b544' : midis.includes(m) ? '#45c9a3' : null;
+  let s = `<svg class="mkb" viewBox="0 0 ${whites.length * W + 1} ${H + 1}" width="${(whites.length * W + 1) * 1.15}">`;
+  for (const m of whites) s += `<rect x="${x[m] + .5}" y=".5" width="${W}" height="${H}" rx="2" fill="${fill(m) || '#ebe7de'}" stroke="#6b6559"/>`;
+  for (let m = lo; m <= hi; m++) if (isBlack(m)) s += `<rect x="${x[m - 1] + W * .66}" y=".5" width="${W * .68}" height="${H * .6}" rx="1.5" fill="${fill(m) || '#1a1b1f'}" stroke="#000"/>`;
+  return s + '</svg>';
+}
+function invCard(c, inv, midis, label) {
+  const order = midis.map(m => toneName(c, m % 12)).join(' ');
+  const top = TONE[c.pcs.indexOf(midis.at(-1) % 12)];
+  return `<div class="icard"><div class="r">${label || INV_NAMES[inv]}</div><div class="n">${c.roman} · ${slashName(c, inv)}</div>${miniKb(midis)}<div class="t">${order} · ${TONE[inv]} in the bass, ${top} on top</div></div>`;
+}
+// What the player is holding, compared with chord c in inversion inv
+function invMatch(c, inv) {
+  const ms = [...held]; if (ms.length < c.pcs.length) return null;
+  const hp = [...heldPcs()];
+  if (!sameSet(hp, c.pcs)) return hp.some(p => !c.pcs.includes(p)) ? 'wrong' : null;
+  const lo = Math.min(...ms), hi = Math.max(...ms);
+  if (lo % 12 !== c.pcs[inv]) return 'inv';
+  if (settings.invClose && hi - lo > 12) return 'wide';
+  return 'ok';
+}
+function invProblem(r, c, inv) {
+  const lo = Math.min(...held), got = c.pcs.indexOf(lo % 12);
+  if (r === 'inv') return `That's ${INV_NAMES[got].toLowerCase()} (${toneName(c, lo % 12)} at the bottom). ${INV_NAMES[inv]} needs the ${TONE[inv]}, ${toneName(c, c.pcs[inv])}, at the bottom.`;
+  if (r === 'wide') return 'Right notes, but keep them close together: all within one octave.';
+  const id = identify([...held], key);
+  return `That's ${id ? id.name : 'something else'}, not ${c.name} (${c.noteNames}).`;
+}
+
+const Inversions = {
+  enter() { this.right = 0; this.wrong = 0; this.streak = 0; this.deg = 0; this.q = null; this.reset(); },
+  keyChanged() { this.deg = 0; this.reset(); },
+  settingChanged(s) { if (['showHints', 'showNames'].includes(s)) this.render(); else this.reset(); },
+  list() { return settings.sevenths ? key.chords7 : key.chords; },
+  reset() {
+    clearTimeout(autoTimer); clearDemo(); clearTargets();
+    this.done = false; this.bad = false; this.step = 0; this.prevLow = null; this.t0 = performance.now();
+    const m = settings.invMode;
+    if (m === 'shapes') {
+      this.chord = this.list()[this.deg];
+      const n = this.chord.pcs.length;
+      this.shapes = []; let base = 55;
+      for (let i = 0; i <= n; i++) { const v = invVoicing(this.chord, i % n, base); this.shapes.push({ inv: i % n, midis: v, label: i === n ? 'Root position, octave up' : null }); base = v[0] + 1; }
+    } else if (m === 'random') {
+      const list = this.list(); let c, inv, tries = 0;
+      do { c = pick(list); inv = rand(c.pcs.length); } while (this.q && c.name === this.q.c.name && inv === this.q.inv && tries++ < 20);
+      this.q = { c, inv, midis: invVoicing(c, inv, 57) };
+    } else {
+      this.smooth = voiceLead(Progs.chords());
+    }
+    this.render();
+  },
+  render() {
+    const m = settings.invMode;
+    const tabs = `<div class="mode-switch">${[['shapes', 'Shapes'], ['random', 'Random drill'], ['smooth', 'Smooth progressions']].map(([v, l]) => `<button data-inv="${v}" class="${m === v ? 'on' : ''}">${l}</button>`).join('')}</div>`;
+    const opts = `<label class="toggle"><input type="checkbox" data-set="sevenths" ${settings.sevenths ? 'checked' : ''}> 7th chords</label>
+      <label class="toggle"><input type="checkbox" data-set="invClose" ${settings.invClose ? 'checked' : ''}> Close position only</label>
+      <label class="toggle"><input type="checkbox" data-set="showNames" ${settings.showNames ? 'checked' : ''}> Chord names</label>`;
+    let body = '';
+    if (m === 'shapes') {
+      const c = this.chord;
+      body = `
+        <div class="row"><div><div class="prompt">Climb up the keyboard: the same chord, every way it can be played</div>
+          <div class="big">${c.roman}<span class="sub">${c.name} in ${key.label}</span></div></div></div>
+        <div class="row" style="margin-top:10px"><span class="picker">${this.list().map((ch, i) => `<button data-deg="${i}" class="${i === this.deg ? 'on' : ''}">${ch.roman}</button>`).join('')}</span></div>
+        <div class="icards" id="invCards">${this.shapes.map(s => invCard(c, s.inv, s.midis, s.label)).join('')}</div>
+        <div class="feedback" id="invFb"></div>
+        <div class="row"><button id="invHear">▶ Hear it</button><button id="invRestart">Restart</button>${opts}
+          <label class="toggle"><input type="checkbox" data-set="showHints" ${settings.showHints ? 'checked' : ''}> Show next shape on keyboard</label></div>
+        <div class="row">${nextKeyControls()}</div>
+        <div class="muted small" style="margin-top:10px">The <b>lowest note</b> decides the name: root at the bottom = root position, 3rd at the bottom = 1st inversion, 5th at the bottom = 2nd inversion${settings.sevenths ? ', 7th at the bottom = 3rd inversion' : ''}. Each new shape is the last one with its bottom note moved up an octave. Do all 7 chords to climb the whole key.</div>`;
+    } else if (m === 'random') {
+      const { c, inv } = this.q;
+      body = `
+        <div class="row"><div><div class="prompt">In <b>${key.label}</b>, play:</div>
+          <div class="big">${c.roman}<span class="sub">${INV_NAMES[inv]}</span></div>
+          <div class="muted" style="margin-top:4px">${settings.showNames ? `${slashName(c, inv)}: ` : ''}the ${TONE[inv]}${settings.showNames ? ` (${toneName(c, c.pcs[inv])})` : ''} goes at the bottom</div></div>
+          <div class="spacer"></div>
+          <div class="score"><span><b>${this.right}</b>right</span><span><b>${this.wrong}</b>wrong</span><span><b>${this.streak}</b>streak</span></div></div>
+        <div id="invReveal"></div>
+        <div class="feedback" id="invFb"></div>
+        <div class="row"><button id="invHear">▶ Hear it</button><button id="invShow">Show me</button><button id="invSkip">Skip</button>${opts}</div>`;
+    } else {
+      const list = Progs.list(), sel = Math.min(settings.prog, list.length - 1);
+      const root = Progs.chords().map(c => invVoicing(c, 0, 55));
+      body = `
+        <div class="row"><div><div class="prompt">Play each chord in the inversion shown. Your hand barely has to move.</div>
+          <div class="big">${key.label}</div></div>
+          <div class="spacer"></div>
+          <div class="score"><span><b>${Math.round(pathCost(this.smooth.map(s => s.midis)))}</b>semitones moved</span><span><b>${Math.round(pathCost(root))}</b>in root position</span></div></div>
+        <div class="icards" id="invCards">${this.smooth.map(s => invCard(s.chord, s.inv, s.midis)).join('')}</div>
+        <div class="feedback" id="invFb"></div>
+        <div class="row"><select data-set="prog">${list.map((p, i) => `<option value="${i}" ${i === sel ? 'selected' : ''}>${p.name}</option>`).join('')}</select>
+          <button id="invHear">▶ Hear it</button><button id="invRestart">Restart</button>${opts}
+          <label class="toggle"><input type="checkbox" data-set="showHints" ${settings.showHints ? 'checked' : ''}> Show next chord on keyboard</label></div>
+        <div class="row">${nextKeyControls()}</div>
+        <div class="muted small" style="margin-top:10px">This is why inversions matter: notes the chords share stay put, and the others move a step or two. Once it feels easy, turn on <b>Smooth inversions</b> in the Loop challenge and play it in time.</div>`;
+    }
+    P().innerHTML = `<div class="row" style="margin-bottom:14px">${tabs}</div>${body}`;
+    P().querySelectorAll('[data-inv]').forEach(b => b.onclick = () => { setSetting('invMode', b.dataset.inv); this.reset(); });
+    P().querySelectorAll('[data-deg]').forEach(b => b.onclick = () => { this.deg = +b.dataset.deg; this.reset(); });
+    const hear = $('#invHear');
+    if (m === 'shapes') hear.onclick = () => this.demo(this.shapes.map(s => s.midis), 0.8);
+    if (m === 'smooth') hear.onclick = () => this.demo(this.smooth.map(s => s.midis), 1.0);
+    if (m === 'random') {
+      hear.onclick = () => playSequence([{ midis: this.q.midis, at: 0, dur: 1.2 }]);
+      $('#invShow').onclick = () => { this.bad = true; $('#invReveal').innerHTML = `<div class="icards">${invCard(this.q.c, this.q.inv, this.q.midis)}</div>`; targetMidis = new Set(this.q.midis); renderKeyboardState(); };
+      $('#invSkip').onclick = () => { this.streak = 0; this.reset(); };
+    } else $('#invRestart').onclick = () => this.reset();
+    this.update();
+  },
+  demo(voicings, gap) {
+    const cards = () => document.querySelectorAll('#invCards .icard');
+    playSequence(voicings.map((v, i) => ({ midis: v, at: i * gap, dur: gap * 0.92, cb: () => cards().forEach((el, j) => el.classList.toggle('demo', j === i)) }))
+      .concat([{ midis: [], at: voicings.length * gap, dur: 0.01, cb: () => cards().forEach(el => el.classList.remove('demo')) }]));
+  },
+  update() {
+    const m = settings.invMode;
+    if (m === 'random') return;
+    const items = m === 'shapes' ? this.shapes : this.smooth;
+    document.querySelectorAll('#invCards .icard').forEach((el, i) => { el.classList.toggle('done', i < this.step); el.classList.toggle('cur', i === this.step && !this.done); });
+    let hint = [];
+    if (settings.showHints && !this.done) {
+      const it = items[this.step];
+      hint = m === 'shapes' && this.prevLow != null ? invVoicing(this.chord, it.inv, this.prevLow + 1) : it.midis;
+    }
+    targetMidis = new Set(hint); renderKeyboardState();
+  },
+  fb(text, cls) { const el = $('#invFb'); if (el) { el.className = 'feedback ' + (cls || ''); el.textContent = text; } },
+  heldChanged() {
+    if (this.done) return;
+    const m = settings.invMode;
+    if (m === 'random') {
+      const { c, inv } = this.q, r = invMatch(c, inv);
+      if (r === 'ok') {
+        this.done = true;
+        if (!this.bad) { this.right++; this.streak++; game.invRight++; addXP(3 + Math.min(2, Math.floor(this.streak / 5))); }
+        this.fb(`✓ ${slashName(c, inv)}: ${INV_NAMES[inv].toLowerCase()}`, 'ok');
+        targetMidis = new Set(); renderKeyboardState();
+        scheduleNext(() => this.reset(), 900);
+      } else if (r && !this.bad) { this.bad = true; this.wrong++; this.streak = 0; this.fb(invProblem(r, c, inv), 'bad'); }
+      else if (r) this.fb(invProblem(r, c, inv), 'bad');
+      return;
+    }
+    const items = m === 'shapes' ? this.shapes : this.smooth, it = items[this.step];
+    const c = m === 'shapes' ? this.chord : it.chord;
+    const r = invMatch(c, it.inv);
+    if (!r) return;
+    if (r !== 'ok') return this.fb(invProblem(r, c, it.inv), 'bad');
+    const lo = Math.min(...held);
+    if (m === 'shapes' && this.prevLow != null && lo <= this.prevLow) return this.fb('Right shape, but climb: play it higher than the last one.', 'bad');
+    this.prevLow = lo; this.step++; this.fb('');
+    if (this.step === items.length) {
+      this.done = true;
+      if (m === 'shapes') {
+        addXP(5);
+        if (this.deg < 6) { this.fb(`✓ ${c.roman} done. Next: ${this.list()[this.deg + 1].roman}`, 'ok'); scheduleNext(() => { this.deg++; this.reset(); }, 1300); }
+        else {
+          game.climbDone++; addXP(15); toast(`🧗 You climbed every chord in ${key.label}!`, 'big');
+          this.fb(`✓ All 7 chords of ${key.label}!` + (settings.autoNext && settings.nextDir !== 'stay' ? ' Next key coming…' : ''), 'ok');
+          scheduleNext(() => { if (settings.autoNext) nextKey(); else { this.deg = 0; this.reset(); } }, 2200);
+        }
+      } else {
+        game.smoothDone++; addXP(12);
+        this.fb('✓ Smooth!' + (settings.autoNext && settings.nextDir !== 'stay' ? ' Same thing in the next key…' : ''), 'ok');
+        if (settings.autoNext) scheduleNext(() => nextKey(), 1800); else scheduleNext(() => this.reset(), 1800);
+      }
+    }
+    this.update();
+  },
+};
+
 /* ---------- Loop challenge: same progression, in time, until you slip ---------- */
 const Loop = {
   running: false, phase: 'idle', slots: [], clicks: [], count: [],
@@ -1272,8 +1499,8 @@ const Loop = {
   keyChanged() { if (this.transposing) return; this.halt(); this.phase = 'idle'; clearTargets(); this.render(); },
   settingChanged() { if (!this.running) this.render(); },
   progNow() { const list = Progs.list(); return list[Math.min(settings.prog, list.length - 1)]; },
-  recIdNow() { return `${key.mode}|${this.progNow().name}|${settings.loopBpc}|${settings.sevenths ? 7 : 3}`; },
-  recLabel() { const b = +settings.loopBpc; return `${this.progNow().name} <span>(${key.mode}, ${b} beat${b > 1 ? 's' : ''}/chord${settings.sevenths ? ', 7ths' : ''})</span>`; },
+  recIdNow() { return `${key.mode}|${this.progNow().name}|${settings.loopBpc}|${settings.sevenths ? 7 : 3}${settings.loopSmooth ? '|inv' : ''}`; },
+  recLabel() { const b = +settings.loopBpc; return `${this.progNow().name} <span>(${key.mode}, ${b} beat${b > 1 ? 's' : ''}/chord${settings.sevenths ? ', 7ths' : ''}${settings.loopSmooth ? ', smooth inversions' : ''})</span>`; },
   win(s) { return Math.min(s.spb * 0.5, 450); },          // how early/late a chord may land
   target() { return this.slots.find(s => !s.hit); },
   halt() {
@@ -1294,9 +1521,10 @@ const Loop = {
   addLoop(start) {
     const ch = Progs.chords(), spb = 60000 / this.bpm, bpc = +settings.loopBpc;
     const loop = this.slots.length ? this.slots.at(-1).loop + 1 : 0;
+    const vl = settings.loopSmooth ? voiceLead(ch) : null;
     ch.forEach((c, i) => {
       const s = start + i * bpc * spb;
-      this.slots.push({ loop, i, n: ch.length, chord: c, k: { idx: key.idx, mode: key.mode, alt: key.alt }, keyId: key.id, keyLabel: key.label,
+      this.slots.push({ loop, i, n: ch.length, chord: c, inv: vl ? vl[i].inv : null, midis: vl ? vl[i].midis : null, k: { idx: key.idx, mode: key.mode, alt: key.alt }, keyId: key.id, keyLabel: key.label,
         bpm: this.bpm, spb, start: s, end: s + bpc * spb, hit: false, gen: false,
         beats: Array.from({ length: bpc }, (_, j) => ({ t: s + j * spb, sched: false, accent: j === 0 })) });
     });
@@ -1343,6 +1571,7 @@ const Loop = {
     const w = this.win(t); if (now < t.start - w) return;
     const hp = [...heldPcs()];
     if (hp.length < t.chord.pcs.length || !sameSet(hp, t.chord.pcs)) return;
+    if (t.inv != null && Math.min(...held) % 12 !== t.chord.pcs[t.inv]) return;   // smooth mode: inversion must match
     const attack = Math.max(...[...held].map(m => lastOn.get(m) || 0));
     if (attack < t.start - w) return;                     // a chord held over from before must be struck again
     this.hit(t, attack - t.start);
@@ -1359,6 +1588,7 @@ const Loop = {
     if (rec && !this.recBeaten && this.row > rec.row) { this.recBeaten = true; toast('🏅 New record — keep going!', 'big'); chime(); }
     if (s.i === s.n - 1) {
       this.loops++; this.topBpm = Math.max(this.topBpm, s.bpm); game.keysDone[s.keyId] = 1;
+      if (s.inv != null) game.smoothDone++;
       game.bestLoops = Math.max(game.bestLoops, this.loops); game.maxBpm = Math.max(game.maxBpm, s.bpm);
       addXP(5 + Math.max(0, Math.floor((s.bpm - 60) / 20)) * 2 + Math.min(5, this.loops - 1));
     } else save();
@@ -1381,12 +1611,14 @@ const Loop = {
   },
   fail(reason, s) {
     const hp = [...heldPcs()], c = s.chord;
-    if (reason === 'missed' && hp.length >= c.pcs.length && sameSet(hp, c.pcs)) reason = 'early';
+    if (reason === 'missed' && hp.length >= c.pcs.length && sameSet(hp, c.pcs))
+      reason = s.inv != null && Math.min(...held) % 12 !== c.pcs[s.inv] ? 'inversion' : 'early';
     const played = identify([...held], key);
     this.halt(); this.phase = 'fail'; s.miss = true; this.failLoop = s.loop;
     if (s.keyId !== key.id) { this.transposing = true; setKey(s.k.idx, s.k.mode, s.k.alt); this.transposing = false; }
     const why = reason === 'wrong' ? `You played ${played?.name || 'other notes'}. ${c.roman} is ${c.name} (${c.noteNames})`
       : reason === 'early' ? `Too early on ${c.roman}. Land it on the click`
+      : reason === 'inversion' ? `Right chord, wrong inversion. ${c.roman} goes in ${INV_NAMES[s.inv].toLowerCase()}: ${toneName(c, c.pcs[s.inv])} at the bottom`
       : `Missed ${c.roman} (${c.name}). It was due on the click`;
     const rec = game.records[this.recId];
     const isRec = this.row > 0 && (!rec || this.row > rec.row);
@@ -1394,7 +1626,7 @@ const Loop = {
     save();
     if (isRec && this.row >= 4) addXP(15);
     this.lastRun = { why, row: this.row, loops: this.loops, isRec, prev: rec ? rec.row : 0 };
-    hintPcs = new Set(c.pcs); targetPcs = new Set(); targetMidis = new Set(); renderKeyboardState();
+    hintPcs = s.midis ? new Set() : new Set(c.pcs); targetPcs = new Set(); targetMidis = new Set(s.midis || []); renderKeyboardState();
     chime(false);
     this.render();
     if (settings.loopAutoRestart) this.restartT = setTimeout(() => { if (curMode === 'loop' && this.phase === 'fail') this.start(); }, 3200);
@@ -1412,8 +1644,9 @@ const Loop = {
     this.cardsLoop = loop; this.lastBeatKey = null;
     const ss = this.slots.filter(s => s.loop === loop);
     const chords = ss.length ? ss.map(s => s.chord) : Progs.chords();
+    const invs = ss.length ? ss.map(s => s.inv) : settings.loopSmooth ? voiceLead(chords).map(v => v.inv) : chords.map(() => null);
     const bpc = ss[0]?.beats.length || +settings.loopBpc;
-    $('#lpCards').innerHTML = chords.map(c => `<div class="pcard"><div class="r">${c.roman}</div><div class="n" style="visibility:${settings.showNames ? 'visible' : 'hidden'}">${c.name}</div><div class="beats">${'<i></i>'.repeat(bpc)}</div><div class="g"></div></div>`).join('');
+    $('#lpCards').innerHTML = chords.map((c, i) => `<div class="pcard"><div class="r">${c.roman}</div><div class="n" style="visibility:${settings.showNames ? 'visible' : 'hidden'}">${invs[i] != null ? slashName(c, invs[i]) : c.name}</div>${invs[i] != null ? `<div class="inv">${INV_NAMES[invs[i]]}</div>` : ''}<div class="beats">${'<i></i>'.repeat(bpc)}</div><div class="g"></div></div>`).join('');
     $('#lpKey').textContent = ss[0]?.keyLabel || key.label;
   },
   paint(cur, beat) {
@@ -1432,10 +1665,10 @@ const Loop = {
     const beat = cur ? Math.floor((now - cur.start) / cur.spb) : -1;
     const bk = cur ? cur.loop + ':' + cur.i + ':' + beat : 'none';
     if (bk !== this.lastBeatKey) { this.lastBeatKey = bk; this.paint(cur, beat); }
-    const t = this.target(), hk = settings.showHints && t ? t.chord.pcs.join() : '';
+    const t = this.target(), hk = settings.showHints && t ? t.chord.pcs.join() + ':' + t.inv : '';
     if (hk !== this.hintKey) {   // show one close voicing around middle C rather than every octave
-      this.hintKey = hk; targetMidis = new Set();
-      if (hk) { let m = 59; for (const pc of t.chord.pcs) { m++; while (m % 12 !== pc) m++; targetMidis.add(m); } }
+      this.hintKey = hk; targetMidis = new Set(t?.midis || []);
+      if (hk && !t.midis) { let m = 59; for (const pc of t.chord.pcs) { m++; while (m % 12 !== pc) m++; targetMidis.add(m); } }
       renderKeyboardState();
     }
   },
@@ -1469,6 +1702,7 @@ const Loop = {
         <label class="toggle"><input type="checkbox" data-set="showHints" ${settings.showHints ? 'checked' : ''}> Show next chord on keyboard</label>
         <label class="toggle"><input type="checkbox" data-set="showNames" ${settings.showNames ? 'checked' : ''}> Chord names</label>
         <label class="toggle"><input type="checkbox" data-set="sevenths" ${settings.sevenths ? 'checked' : ''} ${run ? 'disabled' : ''}> 7ths</label>
+        <label class="toggle" title="Each chord must be played in the inversion shown, so your hand barely moves"><input type="checkbox" data-set="loopSmooth" ${settings.loopSmooth ? 'checked' : ''} ${run ? 'disabled' : ''}> Smooth inversions</label>
         <label class="toggle"><input type="checkbox" data-set="loopAutoRestart" ${settings.loopAutoRestart ? 'checked' : ''}> Restart automatically</label>
       </div>
       <div class="row">
@@ -1519,6 +1753,7 @@ const ProgressTab = {
         <li><b>Loop challenge:</b> 5+ XP per clean loop, more at faster tempos and longer runs, plus 15 for a new record</li>
         <li><b>Scales:</b> 20 XP for a clean run (10 with mistakes) · <b>Progressions:</b> 10 XP</li>
         <li><b>Chords:</b> 2–4 XP per chord, more on a streak · <b>Quiz:</b> 3 XP per right answer</li>
+        <li><b>Inversions:</b> 5 XP per chord climbed, 15 bonus for a whole key · 3–5 XP per right inversion in the drill · 12 XP per smooth progression</li>
         <li>Hit your daily goal every day to keep the 🔥 streak alive.</li>
       </ul>
       <div class="row" style="margin-top:16px"><button class="ghost small" id="resetAll">Reset all progress</button></div>`;
@@ -1531,7 +1766,7 @@ const ProgressTab = {
   },
 };
 
-const modes = { explore: Explore, scales: Scales, chords: Chords, progressions: Progs, loop: Loop, quiz: Quiz, progress: ProgressTab };
+const modes = { explore: Explore, scales: Scales, chords: Chords, inversions: Inversions, progressions: Progs, loop: Loop, quiz: Quiz, progress: ProgressTab };
 let curMode = 'explore';
 function setMode(m) {
   modes[curMode]?.leave?.();
