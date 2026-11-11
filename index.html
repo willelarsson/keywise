@@ -1,0 +1,1155 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0e1014">
+<title>Keywise</title>
+<style>
+:root{
+  --bg:#0e1014; --panel:#161920; --panel2:#1d212a; --line:#2a2f3a; --line2:#353b48;
+  --text:#ece9e2; --muted:#8d93a0; --faint:#5b6170;
+  --gold:#f2b544; --gold-dim:rgba(242,181,68,.16);
+  --in:#45c9a3; --in-dim:rgba(69,201,163,.16);
+  --out:#ff6b6b; --blue:#78a9ff; --blue-dim:rgba(120,169,255,.18);
+  --kb-h:150px; --radius:14px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+body{padding-bottom:calc(var(--kb-h) + 46px + env(safe-area-inset-bottom))}
+button,select,input{font:inherit;color:inherit}
+button{background:var(--panel2);border:1px solid var(--line2);border-radius:9px;padding:7px 12px;cursor:pointer;transition:background .15s,border-color .15s}
+button:hover{border-color:var(--faint)}
+button.primary{background:var(--gold);color:#1a1405;border-color:var(--gold);font-weight:600}
+button.ghost{background:transparent}
+select{background:var(--panel2);border:1px solid var(--line2);border-radius:9px;padding:6px 8px}
+h2,h3{margin:0;font-weight:600}
+h3{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:18px 0 8px}
+
+/* header */
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:14px 20px;border-bottom:1px solid var(--line)}
+.brand{font-size:20px;font-weight:700;letter-spacing:-.01em}
+.brand span{font-weight:400;color:var(--muted);font-size:14px;margin-left:8px}
+.controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.pill{display:inline-flex;align-items:center;gap:7px;padding:6px 11px;border-radius:99px;background:var(--panel2);border:1px solid var(--line2);font-size:13px;color:var(--muted)}
+.pill .dot{width:8px;height:8px;border-radius:50%;background:var(--faint)}
+.pill.ok{color:var(--text)} .pill.ok .dot{background:var(--in);box-shadow:0 0 8px var(--in)}
+.pill.warn .dot{background:var(--out)}
+.toggle{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);cursor:pointer;user-select:none}
+.toggle input{accent-color:var(--gold)}
+
+/* layout */
+main{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:16px;padding:16px 20px;max-width:1280px;margin:0 auto}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:18px}
+.practice-card{grid-column:1/-1}
+@media (max-width:900px){ main{grid-template-columns:minmax(0,1fr);padding:12px} .top{padding:12px} }
+
+/* circle */
+.circle-card{display:flex;flex-direction:column;align-items:center}
+#circle{width:100%;max-width:560px;height:auto;display:block;user-select:none;-webkit-user-select:none}
+#circle .seg{cursor:pointer}
+#circle .seg path{fill:var(--panel2);stroke:var(--bg);stroke-width:2;transition:fill .2s}
+#circle .seg:hover path{fill:#262b36}
+#circle .seg.dia path{fill:#272d3a}
+#circle .seg.sel path{fill:var(--gold)}
+#circle .seg.sel text{fill:#1a1405}
+#circle .seg.sel .rn{fill:#3a2c08}
+#circle .seg.live path{fill:var(--in)}
+#circle .seg.live text{fill:#062a20}
+#circle text{fill:var(--text);text-anchor:middle;dominant-baseline:middle;pointer-events:none}
+#circle .lbl-maj{font-size:19px;font-weight:650}
+#circle .lbl-min{font-size:14px;font-weight:550}
+#circle .alt{font-size:10px;fill:var(--muted)}
+#circle .rn{font-size:10.5px;fill:var(--gold);font-weight:600}
+#circle .sig{font-size:10.5px;fill:var(--faint)}
+#circle .sig.cur{fill:var(--gold)}
+#circle .nd circle{fill:var(--bg);stroke:var(--line2);stroke-width:1.5}
+#circle .nd text{font-size:11px;fill:var(--faint)}
+#circle .nd.sc circle{stroke:var(--in)}
+#circle .nd.sc text{fill:var(--text)}
+#circle .nd.ton circle{stroke:var(--gold);stroke-width:2.5}
+#circle .nd.on circle{fill:var(--in);stroke:var(--in)}
+#circle .nd.on text{fill:#062a20;font-weight:700}
+#circle .nd.on.out circle{fill:var(--out);stroke:var(--out)}
+#circle .nd.on.out text{fill:#2a0606}
+#circle .poly{fill:rgba(69,201,163,.14);stroke:var(--in);stroke-width:2;stroke-linejoin:round}
+#circle .poly.out{fill:rgba(255,107,107,.12);stroke:var(--out)}
+#circle .keyarc{fill:none;stroke:var(--in-dim);stroke-width:30;stroke-linecap:round}
+#circle .mastery{stroke-width:5;fill:none;stroke-linecap:butt}
+#circle .c-big{font-size:34px;font-weight:700}
+#circle .c-sub{font-size:14px;fill:var(--gold);font-weight:600}
+#circle .c-small{font-size:11.5px;fill:var(--muted)}
+.circle-hint{font-size:12px;color:var(--faint);margin-top:6px;text-align:center}
+
+/* info */
+.key-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.key-head h2{font-size:28px;letter-spacing:-.01em}
+.mode-switch{display:inline-flex;border:1px solid var(--line2);border-radius:9px;overflow:hidden}
+.mode-switch button{border:0;border-radius:0;background:transparent;padding:6px 12px}
+.mode-switch button.on{background:var(--gold);color:#1a1405;font-weight:600}
+.sigline{color:var(--muted);margin-top:4px}
+.sigline b{color:var(--text);font-weight:600}
+.staff{display:block;margin-top:10px;max-width:260px}
+.staff line{stroke:var(--faint);stroke-width:1}
+.staff text{fill:var(--text)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{display:flex;flex-direction:column;align-items:center;min-width:44px;padding:6px 8px;border-radius:10px;background:var(--panel2);border:1px solid var(--line2);cursor:pointer}
+.chip small{font-size:10px;color:var(--muted)}
+.chip b{font-size:16px}
+.chip.ton{border-color:var(--gold)}
+.chip.ton b{color:var(--gold)}
+.chip.live{background:var(--in);border-color:var(--in);color:#062a20}
+.chip.live small{color:#0b3d2f}
+.chords{display:grid;grid-template-columns:repeat(auto-fill,minmax(78px,1fr));gap:6px}
+.chord{padding:8px 6px;border-radius:10px;background:var(--panel2);border:1px solid var(--line2);text-align:center;cursor:pointer;transition:background .15s}
+.chord .r{font-size:13px;color:var(--gold);font-weight:700}
+.chord .n{font-size:17px;font-weight:650}
+.chord .t{font-size:10.5px;color:var(--muted)}
+.chord.live{background:var(--in);border-color:var(--in);color:#062a20}
+.chord.live .r,.chord.live .t{color:#0b3d2f}
+.chord.extra{border-style:dashed}
+.nbrs{display:flex;flex-wrap:wrap;gap:6px}
+.nbrs button{font-size:13px}
+.nbrs button span{color:var(--muted);margin-right:4px}
+.stats{margin-top:14px;font-size:13px;color:var(--muted);border-top:1px solid var(--line);padding-top:12px}
+.stats b{color:var(--text)}
+
+/* tabs & practice */
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin:-4px -4px 16px;padding:0 4px;overflow-x:auto}
+.tabs button{background:transparent;border:0;border-bottom:2px solid transparent;border-radius:0;padding:9px 14px;color:var(--muted);white-space:nowrap}
+.tabs button.on{color:var(--text);border-bottom-color:var(--gold)}
+.row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.row + .row{margin-top:10px}
+.spacer{flex:1}
+.prompt{font-size:15px;color:var(--muted)}
+.big{font-size:44px;font-weight:750;letter-spacing:-.02em;line-height:1.1}
+.big .sub{font-size:20px;color:var(--muted);font-weight:500;margin-left:10px}
+.feedback{min-height:24px;font-weight:600}
+.feedback.ok{color:var(--in)} .feedback.bad{color:var(--out)}
+.score{display:flex;gap:18px;font-size:13px;color:var(--muted)}
+.score b{color:var(--text);font-size:18px;display:block}
+.seq{display:flex;flex-wrap:wrap;gap:5px;margin:12px 0}
+.seq .s{min-width:42px;padding:6px 6px 4px;border-radius:9px;background:var(--panel2);border:1px solid var(--line2);text-align:center;transition:all .15s}
+.seq .s b{display:block;font-size:16px}
+.seq .s small{display:block;font-size:10px;color:var(--muted);line-height:1.3}
+.seq .s.done{background:var(--in-dim);border-color:var(--in)}
+.seq .s.cur{border-color:var(--gold);box-shadow:0 0 0 2px var(--gold-dim);transform:translateY(-2px)}
+.seq .arrow{align-self:center;color:var(--faint)}
+.progcards{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0}
+.pcard{min-width:84px;padding:12px 10px;border-radius:12px;background:var(--panel2);border:1px solid var(--line2);text-align:center;transition:all .15s}
+.pcard .r{font-size:20px;font-weight:750;color:var(--gold)}
+.pcard .n{font-size:14px;color:var(--muted)}
+.pcard.done{background:var(--in-dim);border-color:var(--in)}
+.pcard.cur{border-color:var(--gold);box-shadow:0 0 0 3px var(--gold-dim);transform:translateY(-3px)}
+.pcard.demo{border-color:var(--blue);background:var(--blue-dim)}
+.live-box{display:flex;gap:24px;align-items:center;flex-wrap:wrap;min-height:84px}
+.live-box .notes{color:var(--muted)}
+.tips{margin:0;padding-left:18px;color:#c9c6bf}
+.tips li{margin:6px 0}
+.tips b{color:var(--text)}
+.muted{color:var(--muted)}
+.small{font-size:13px}
+.result{margin-top:10px;padding:12px 14px;border-radius:12px;background:var(--in-dim);border:1px solid var(--in)}
+.result.bad{background:rgba(255,107,107,.1);border-color:var(--out)}
+.two{display:grid;grid-template-columns:1.2fr 1fr;gap:24px}
+@media (max-width:900px){.two{grid-template-columns:1fr}}
+
+/* keyboard */
+.kb-wrap{position:fixed;left:0;right:0;bottom:0;background:#0a0b0e;border-top:1px solid var(--line);z-index:10;padding-bottom:env(safe-area-inset-bottom)}
+.kb-bar{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 16px;font-size:13px;height:38px}
+#nowPlaying{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#nowPlaying .m{color:var(--muted);font-weight:400}
+.kb-help{color:var(--faint);white-space:nowrap}
+@media (max-width:700px){.kb-help{display:none} :root{--kb-h:120px}}
+#kbScroll{overflow-x:auto;overflow-y:hidden;padding:0 8px 8px;scrollbar-width:thin}
+#keyboard{position:relative;height:var(--kb-h);margin:0 auto;touch-action:none;user-select:none;-webkit-user-select:none}
+.key{position:absolute;top:0;cursor:pointer}
+.key.white{width:var(--ww);height:100%;background:linear-gradient(#f6f4ef,#e3dfd5);border:1px solid #9d988c;border-top:0;border-radius:0 0 6px 6px;z-index:1}
+.key.black{width:var(--bw);height:62%;background:linear-gradient(#30333a,#0e0f12);border:1px solid #000;border-top:0;border-radius:0 0 4px 4px;z-index:2}
+.key .lbl{position:absolute;bottom:6px;left:0;right:0;text-align:center;font-size:10px;color:#857f72}
+.key .mark{position:absolute;left:50%;width:8px;height:8px;margin-left:-4px;border-radius:50%;display:none}
+.key.white .mark{bottom:22px} .key.black .mark{bottom:9px}
+.key.scale .mark{display:block;background:#9fa6b2}
+.key.white.scale .mark{background:#9ea5ad}
+.key.tonic .mark{background:var(--gold)!important;width:10px;height:10px;margin-left:-5px}
+.key.white.hint{background:linear-gradient(#dfeaff,#c4d7fb)}
+.key.black.hint{background:linear-gradient(#3b5a94,#22355c)}
+.key.white.demo{background:linear-gradient(#a8c6ff,#78a9ff)}
+.key.black.demo{background:linear-gradient(#5d8ee8,#3866c1)}
+.key.target{box-shadow:inset 0 0 0 3px var(--gold);animation:pulse 1.1s ease-in-out infinite}
+@keyframes pulse{50%{box-shadow:inset 0 0 0 3px rgba(242,181,68,.25)}}
+.key.white.on.in{background:linear-gradient(#7fe3c6,#45c9a3)}
+.key.black.on.in{background:linear-gradient(#3fb893,#1f7a60)}
+.key.white.on.out{background:linear-gradient(#ffa0a0,#ff6b6b)}
+.key.black.on.out{background:linear-gradient(#e85b5b,#9d2d2d)}
+.key.flash-bad{animation:shake .3s}
+@keyframes shake{25%{transform:translateX(-2px)}75%{transform:translateX(2px)}}
+.key.on .lbl{color:#063a2b}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="brand">Keywise<span>learn every key</span></div>
+  <div class="controls">
+    <span id="midiStatus" class="pill"><i class="dot"></i><span>No piano connected</span></span>
+    <select id="midiSelect" hidden></select>
+    <button id="midiBtn">Connect piano</button>
+    <label class="toggle" title="Play sound for on-screen keys and examples"><input type="checkbox" id="soundOn" checked> Sound</label>
+    <label class="toggle" title="Also play the synth when you play your piano (if your piano has no speakers)"><input type="checkbox" id="echoMidi"> Echo piano</label>
+  </div>
+</header>
+
+<main>
+  <section class="card circle-card">
+    <svg id="circle" viewBox="-300 -300 600 600" aria-label="Circle of fifths"></svg>
+    <div class="circle-hint">Outer ring: major keys · inner ring: minor keys · tap a key to select it (tap F♯/G♭ again to flip spelling)</div>
+  </section>
+  <section class="card info-card" id="info"></section>
+  <section class="card practice-card">
+    <nav class="tabs" id="tabs">
+      <button data-mode="explore" class="on">Explore</button>
+      <button data-mode="scales">Scales</button>
+      <button data-mode="chords">Chords</button>
+      <button data-mode="progressions">Progressions</button>
+      <button data-mode="quiz">Theory quiz</button>
+    </nav>
+    <div id="practice"></div>
+  </section>
+</main>
+
+<footer class="kb-wrap">
+  <div class="kb-bar"><span id="nowPlaying"><span class="m">Play something…</span></span><span class="kb-help">No piano? Computer keys A W S E D F T G Y H U J K play notes · Z / X shift octave</span></div>
+  <div id="kbScroll"><div id="keyboard"></div></div>
+</footer>
+
+<script>
+'use strict';
+/* ================================================================
+   Music theory core
+   ================================================================ */
+const $ = s => document.querySelector(s);
+const mod = (n, m) => ((n % m) + m) % m;
+const rand = n => Math.floor(Math.random() * n);
+const pick = a => a[rand(a.length)];
+
+const LETTERS = ['C','D','E','F','G','A','B'];
+const LETTER_PC = [0,2,4,5,7,9,11];
+const SCALES = {
+  major:    [0,2,4,5,7,9,11],
+  natural:  [0,2,3,5,7,8,10],
+  harmonic: [0,2,3,5,7,8,11],
+  melodic:  [0,2,3,5,7,9,11],
+};
+const MAJ_NAMES = ['C','G','D','A','E','B','F#','Db','Ab','Eb','Bb','F'];
+const MAJ_ALT   = {5:'Cb', 6:'Gb', 7:'C#'};
+const MIN_NAMES = ['A','E','B','F#','C#','G#','D#','Bb','F','C','G','D'];
+const MIN_ALT   = {5:'Ab', 6:'Eb', 7:'A#'};
+const SHARP_ORDER = ['F','C','G','D','A','E','B'];
+const FLAT_ORDER  = ['B','E','A','D','G','C','F'];
+const SHARP_NAMES   = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+const FLAT_NAMES    = ['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'];
+const NEUTRAL_NAMES = ['C','C#','D','Eb','E','F','F#','G','Ab','A','Bb','B'];
+const INTERVALS = ['unison','minor 2nd','major 2nd','minor 3rd','major 3rd','perfect 4th','tritone','perfect 5th','minor 6th','major 6th','minor 7th','major 7th'];
+const ORD = ['1st','2nd','3rd','4th','5th','6th','7th'];
+const DEG_MAJ = ['tonic','supertonic','mediant','subdominant','dominant','submediant','leading tone'];
+const DEG_MIN = ['tonic','supertonic','mediant','subdominant','dominant','submediant','subtonic'];
+
+const accVal = s => [...s].reduce((v, c) => v + (c === '#' ? 1 : c === 'b' ? -1 : 0), 0);
+const accStr = v => v > 0 ? '#'.repeat(v) : 'b'.repeat(-v);
+const pcOf = name => mod(LETTER_PC[LETTERS.indexOf(name[0])] + accVal(name.slice(1)), 12);
+const pretty = n => n ? n[0] + n.slice(1).replace(/##/g,'𝄪').replace(/bb/g,'𝄫').replace(/#/g,'♯').replace(/b/g,'♭') : '';
+const circleIndexOfPc = pc => mod(pc * 7, 12);
+
+function spellScale(tonic, ivs) {
+  const L = LETTERS.indexOf(tonic[0]), t = pcOf(tonic);
+  return ivs.map((iv, i) => {
+    const li = (L + i) % 7, pc = mod(t + iv, 12);
+    const acc = mod(pc - LETTER_PC[li] + 6, 12) - 6;
+    return { name: LETTERS[li] + accStr(acc), pc, letter: LETTERS[li], acc };
+  });
+}
+
+// Chord templates. core=true are preferred interpretations.
+const TPL = [
+  {k:'maj',    iv:[0,4,7],    suf:'',       rs:'',     lo:false, core:true,  q:'major'},
+  {k:'min',    iv:[0,3,7],    suf:'m',      rs:'',     lo:true,  core:true,  q:'minor'},
+  {k:'dim',    iv:[0,3,6],    suf:'°',      rs:'°',    lo:true,  core:true,  q:'diminished'},
+  {k:'aug',    iv:[0,4,8],    suf:'+',      rs:'+',    lo:false, core:true,  q:'augmented'},
+  {k:'maj7',   iv:[0,4,7,11], suf:'maj7',   rs:'maj7', lo:false, core:true,  q:'major 7th'},
+  {k:'dom7',   iv:[0,4,7,10], suf:'7',      rs:'7',    lo:false, core:true,  q:'dominant 7th'},
+  {k:'min7',   iv:[0,3,7,10], suf:'m7',     rs:'7',    lo:true,  core:true,  q:'minor 7th'},
+  {k:'hdim7',  iv:[0,3,6,10], suf:'ø7',     rs:'ø7',   lo:true,  core:true,  q:'half-diminished 7th'},
+  {k:'dim7',   iv:[0,3,6,9],  suf:'°7',     rs:'°7',   lo:true,  core:true,  q:'diminished 7th'},
+  {k:'mmaj7',  iv:[0,3,7,11], suf:'m(maj7)',rs:'(maj7)',lo:true, core:true,  q:'minor-major 7th'},
+  {k:'sus4',   iv:[0,5,7],    suf:'sus4',   rs:'sus4', lo:false, core:false, q:'suspended 4th'},
+  {k:'sus2',   iv:[0,2,7],    suf:'sus2',   rs:'sus2', lo:false, core:false, q:'suspended 2nd'},
+  {k:'6',      iv:[0,4,7,9],  suf:'6',      rs:'6',    lo:false, core:false, q:'major 6th'},
+  {k:'m6',     iv:[0,3,7,9],  suf:'m6',     rs:'6',    lo:true,  core:false, q:'minor 6th'},
+  {k:'add9',   iv:[0,2,4,7],  suf:'add9',   rs:'add9', lo:false, core:false, q:'add 9'},
+  {k:'madd9',  iv:[0,2,3,7],  suf:'m(add9)',rs:'add9', lo:true,  core:false, q:'minor add 9'},
+  {k:'7no5',   iv:[0,4,10],   suf:'7',      rs:'7',    lo:false, core:false, q:'dominant 7th (no 5th)'},
+  {k:'maj7no5',iv:[0,4,11],   suf:'maj7',   rs:'maj7', lo:false, core:false, q:'major 7th (no 5th)'},
+  {k:'m7no5',  iv:[0,3,10],   suf:'m7',     rs:'7',    lo:true,  core:false, q:'minor 7th (no 5th)'},
+];
+const sameSet = (a, b) => { if (a.length !== b.length) return false; const s = new Set(a); return b.every(x => s.has(x)); };
+
+const RN_MAJ = ['I','♭II','II','♭III','III','IV','♯IV','V','♭VI','VI','♭VII','VII'];
+const RN_MIN = ['I','♭II','II','III','♯III','IV','♯IV','V','VI','♯VI','VII','VII'];
+function romanFor(rootPc, t, key) {
+  let r = (key.mode === 'major' ? RN_MAJ : RN_MIN)[mod(rootPc - key.tonicPc, 12)];
+  if (t.lo) r = r.toLowerCase();
+  return r + t.rs;
+}
+
+function makeKey(idx, mode, alt = false) {
+  idx = mod(idx, 12);
+  const names = mode === 'major' ? MAJ_NAMES : MIN_NAMES, alts = mode === 'major' ? MAJ_ALT : MIN_ALT;
+  const tonic = (alt && alts[idx]) || names[idx];
+  const scale = spellScale(tonic, mode === 'major' ? SCALES.major : SCALES.natural);
+  const accOf = l => scale.find(n => n.letter === l).acc;
+  const sharps = SHARP_ORDER.filter(l => accOf(l) > 0).map(l => scale.find(n => n.letter === l).name);
+  const flats  = FLAT_ORDER.filter(l => accOf(l) < 0).map(l => scale.find(n => n.letter === l).name);
+  const key = {
+    idx, mode, alt: !!(alt && alts[idx]), tonic, tonicPc: pcOf(tonic), scale, sharps, flats,
+    sigType: sharps.length ? 'sharp' : flats.length ? 'flat' : null,
+    sigCount: sharps.length || flats.length,
+    label: pretty(tonic) + (mode === 'major' ? ' major' : ' minor'),
+    short: pretty(tonic) + (mode === 'minor' ? 'm' : ''),
+    id: idx + '-' + mode,
+    hasAlt: idx in alts,
+  };
+  key.chords  = [0,1,2,3,4,5,6].map(d => buildChord(key, d, false));
+  key.chords7 = [0,1,2,3,4,5,6].map(d => buildChord(key, d, true));
+  if (mode === 'minor') {
+    key.harmV  = buildChord(key, 4, false, true);
+    key.harmV7 = buildChord(key, 4, true, true);
+  }
+  return key;
+}
+
+function buildChord(key, d, seventh, harmonic = false) {
+  const sc = harmonic ? spellScale(key.tonic, SCALES.harmonic) : key.scale;
+  const notes = (seventh ? [0,2,4,6] : [0,2,4]).map(o => sc[(d + o) % 7]);
+  const pcs = notes.map(n => n.pc);
+  const t = TPL.find(t => sameSet(t.iv, pcs.map(p => mod(p - pcs[0], 12))));
+  return { degree: d, notes, pcs, rootPc: pcs[0], tpl: t, harmonic,
+    name: pretty(notes[0].name) + t.suf, roman: romanFor(pcs[0], t, key),
+    noteNames: notes.map(n => pretty(n.name)).join(' ') };
+}
+
+function sigText(key) {
+  if (!key.sigType) return 'no sharps or flats';
+  const n = key.sigCount, w = key.sigType === 'sharp' ? 'sharp' : 'flat';
+  return `${n} ${w}${n > 1 ? 's' : ''}`;
+}
+const sigList = key => (key.sharps.length ? key.sharps : key.flats).map(pretty).join(' ');
+
+function spellPc(pc, key) {
+  const n = key.scale.find(s => s.pc === pc);
+  if (n) return n.name;
+  if (key.mode === 'minor') {
+    const lt = spellScale(key.tonic, SCALES.harmonic)[6]; if (lt.pc === pc) return lt.name;
+    const m6 = spellScale(key.tonic, SCALES.melodic)[5]; if (m6.pc === pc) return m6.name;
+  }
+  return (key.sigType === 'sharp' ? SHARP_NAMES : key.sigType === 'flat' ? FLAT_NAMES : NEUTRAL_NAMES)[pc];
+}
+const inKeyPcs = key => {
+  const s = new Set(key.scale.map(n => n.pc));
+  if (key.mode === 'minor') s.add(mod(key.tonicPc + 11, 12)); // raised 7th is "in key" in minor
+  return s;
+};
+
+function identify(midis, key) {
+  if (!midis.length) return null;
+  const sorted = [...midis].sort((a, b) => a - b), bass = sorted[0] % 12;
+  const pcs = [...new Set(sorted.map(m => m % 12))];
+  const names = pcs.map(p => pretty(spellPc(p, key)));
+  if (pcs.length === 1) return { type: 'note', pcs, name: names[0], notes: names };
+  if (pcs.length === 2) {
+    const lo = sorted[0], hi = sorted.find(m => m % 12 !== lo % 12);
+    const iv = mod(hi - lo, 12);
+    return { type: 'interval', pcs, name: `${pretty(spellPc(lo % 12, key))}–${pretty(spellPc(hi % 12, key))}`, sub: INTERVALS[iv], notes: names };
+  }
+  const roots = [bass, ...pcs.filter(p => p !== bass)];
+  for (const core of [true, false]) for (const r of roots) {
+    const rel = pcs.map(p => mod(p - r, 12));
+    const t = TPL.find(t => t.core === core && sameSet(t.iv, rel));
+    if (t) {
+      const name = pretty(spellPc(r, key)) + t.suf + (bass !== r ? '/' + pretty(spellPc(bass, key)) : '');
+      return { type: 'chord', pcs, rootPc: r, tpl: t, bassPc: bass, name, roman: romanFor(r, t, key), sub: t.q, notes: names };
+    }
+  }
+  return { type: 'cluster', pcs, name: names.join(' '), notes: names };
+}
+
+// Voicing for playback: bass root + close-position chord around middle C
+function voice(pcs) {
+  const out = [36 + 12 + pcs[0] - (pcs[0] > 7 ? 12 : 0)];
+  let prev = 54;
+  for (const pc of pcs) { let m = prev + 1; while (m % 12 !== pc) m++; out.push(m); prev = m; }
+  return out;
+}
+
+// Standard major-scale fingerings (ascending, one octave), keyed by tonic pitch class
+const FINGERING = {
+  0:{rh:[1,2,3,1,2,3,4,5],lh:[5,4,3,2,1,3,2,1]}, 7:{rh:[1,2,3,1,2,3,4,5],lh:[5,4,3,2,1,3,2,1]},
+  2:{rh:[1,2,3,1,2,3,4,5],lh:[5,4,3,2,1,3,2,1]}, 9:{rh:[1,2,3,1,2,3,4,5],lh:[5,4,3,2,1,3,2,1]},
+  4:{rh:[1,2,3,1,2,3,4,5],lh:[5,4,3,2,1,3,2,1]}, 11:{rh:[1,2,3,1,2,3,4,5],lh:[4,3,2,1,4,3,2,1]},
+  6:{rh:[2,3,4,1,2,3,1,2],lh:[4,3,2,1,3,2,1,4]}, 1:{rh:[2,3,1,2,3,4,1,2],lh:[3,2,1,4,3,2,1,3]},
+  8:{rh:[3,4,1,2,3,1,2,3],lh:[3,2,1,4,3,2,1,3]}, 3:{rh:[3,1,2,3,4,1,2,3],lh:[3,2,1,4,3,2,1,3]},
+  10:{rh:[4,1,2,3,1,2,3,4],lh:[3,2,1,4,3,2,1,3]}, 5:{rh:[1,2,3,4,1,2,3,4],lh:[5,4,3,2,1,3,2,1]},
+};
+
+/* ================================================================
+   Storage
+   ================================================================ */
+const STORE_KEY = 'keywise.v1';
+let store = { keys: {}, settings: {} };
+try { const s = JSON.parse(localStorage.getItem(STORE_KEY)); if (s && s.keys) store = s; } catch (e) {}
+const save = () => { try { localStorage.setItem(STORE_KEY, JSON.stringify(store)); } catch (e) {} };
+const settings = Object.assign({ nextDir: 'cw', autoNext: true, sevenths: false, showNames: true, showHints: true, quizScope: 'all', minorVariant: 'natural', prog: 0, echo: false, sound: true }, store.settings);
+const setSetting = (k, v) => { settings[k] = v; store.settings = settings; save(); };
+const kstat = id => (store.keys[id] ||= { scaleRuns: 0, scaleBest: null, chordRight: 0, chordWrong: 0, progRuns: 0 });
+function mastery(id) {
+  const s = store.keys[id]; if (!s) return 0;
+  const acc = s.chordRight + s.chordWrong ? s.chordRight / (s.chordRight + s.chordWrong) : 0;
+  return Math.min(1, Math.min(s.scaleRuns, 3) / 3 * 0.4 + acc * Math.min(s.chordRight, 20) / 20 * 0.35 + Math.min(s.progRuns, 3) / 3 * 0.25);
+}
+
+/* ================================================================
+   App state
+   ================================================================ */
+const state = { idx: 0, mode: 'major', alt: false };
+let key = makeKey(0, 'major');
+const held = new Set();        // physically held notes (midi)
+const demo = new Set();        // notes lit by playback
+let hintPcs = new Set();       // keys tinted as hints
+let targetMidi = null;         // single exact target
+let targetPcs = new Set();     // pitch classes to pulse
+
+function setKey(idx, mode, alt = false) {
+  state.idx = mod(idx, 12); state.mode = mode; state.alt = alt;
+  key = makeKey(state.idx, mode, alt);
+  renderInfo(); renderCircle(); renderKeyboardMarks();
+  modes[curMode].keyChanged?.();
+}
+function nextKey(dir = settings.nextDir) {
+  if (dir === 'stay') return setKey(state.idx, state.mode, state.alt);
+  if (dir === 'random') { let i; do { i = rand(12); } while (i === state.idx); return setKey(i, state.mode); }
+  setKey(state.idx + (dir === 'cw' ? 1 : -1), state.mode);
+}
+
+/* ================================================================
+   Audio (simple piano-ish synth)
+   ================================================================ */
+let actx = null, master = null;
+function audio() {
+  if (!actx) {
+    const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return null;
+    actx = new AC(); master = actx.createGain(); master.gain.value = 0.4;
+    const comp = actx.createDynamicsCompressor(); master.connect(comp); comp.connect(actx.destination);
+  }
+  if (actx.state === 'suspended') actx.resume();
+  return actx;
+}
+function makeVoice(m, vel, t) {
+  const c = actx, f = 440 * Math.pow(2, (m - 69) / 12), v = 0.12 + 0.45 * (vel / 127);
+  const g = c.createGain(), lp = c.createBiquadFilter(), o1 = c.createOscillator(), o2 = c.createOscillator(), g2 = c.createGain();
+  lp.type = 'lowpass'; lp.frequency.setValueAtTime(Math.min(9000, f * 9), t); lp.frequency.exponentialRampToValueAtTime(Math.min(3500, f * 3), t + 1.2);
+  o1.type = 'triangle'; o1.frequency.value = f; o2.type = 'sine'; o2.frequency.value = f * 2; g2.gain.value = 0.22;
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(v, t + 0.006);
+  g.gain.exponentialRampToValueAtTime(v * 0.3, t + 0.7); g.gain.exponentialRampToValueAtTime(v * 0.08, t + 4);
+  o1.connect(lp); o2.connect(g2); g2.connect(lp); lp.connect(g); g.connect(master);
+  o1.start(t); o2.start(t);
+  return { g, o: [o1, o2], stop(at, rel = 0.35) { g.gain.cancelScheduledValues(at); g.gain.setTargetAtTime(0.0001, at, rel / 4); o1.stop(at + rel + 0.1); o2.stop(at + rel + 0.1); } };
+}
+const voices = new Map();
+function synthOn(m, vel = 96) {
+  if (!settings.sound || !audio()) return;
+  synthOff(m);
+  voices.set(m, makeVoice(m, vel, actx.currentTime));
+}
+function synthOff(m) { const v = voices.get(m); if (v) { voices.delete(m); v.stop(actx.currentTime); } }
+let demoTimers = [];
+function clearDemo() { demoTimers.forEach(clearTimeout); demoTimers = []; demo.clear(); renderKeyboardState(); }
+// events: [{midis:[...], at:sec, dur:sec, cb?}]
+function playSequence(events) {
+  clearDemo();
+  const c = settings.sound ? audio() : null;
+  const t0 = c ? c.currentTime + 0.05 : 0;
+  for (const e of events) {
+    if (c) for (const m of e.midis) { const v = makeVoice(m, 85, t0 + e.at); v.stop(t0 + e.at + e.dur, 0.4); }
+    demoTimers.push(setTimeout(() => { e.midis.forEach(m => demo.add(m)); e.cb?.(); renderKeyboardState(); }, e.at * 1000 + 50));
+    demoTimers.push(setTimeout(() => { e.midis.forEach(m => demo.delete(m)); renderKeyboardState(); }, (e.at + e.dur) * 1000 + 30));
+  }
+}
+const playChord = pcs => playSequence([{ midis: voice(pcs), at: 0, dur: 1.2 }]);
+const playPc = pc => playSequence([{ midis: [60 + pc], at: 0, dur: 0.7 }]);
+function playScale(k) {
+  const base = 60 + k.tonicPc - (k.tonicPc > 6 ? 12 : 0);
+  const asc = (k.mode === 'major' ? SCALES.major : SCALES.natural).concat(12);
+  playSequence(asc.map((iv, i) => ({ midis: [base + iv], at: i * 0.28, dur: 0.3 })));
+}
+
+/* ================================================================
+   Input: notes
+   ================================================================ */
+function noteOn(m, vel = 96, src = 'screen') {
+  if (held.has(m)) return;
+  if (m < kbLo || m > kbHi) { kbLo = 21; kbHi = 108; buildKeyboard(); }
+  held.add(m);
+  if (src !== 'midi' || settings.echo) synthOn(m, vel);
+  modes[curMode].noteOn?.(m);
+  onHeldChange();
+}
+function noteOff(m, src = 'screen') {
+  if (!held.has(m)) return;
+  held.delete(m);
+  synthOff(m);
+  modes[curMode].noteOff?.(m);
+  onHeldChange();
+}
+function onHeldChange() {
+  renderKeyboardState(); renderCircle(); renderNowPlaying(); renderInfoLive();
+  modes[curMode].heldChanged?.();
+}
+const heldPcs = () => new Set([...held].map(m => m % 12));
+window.keywise = { noteOn, noteOff, setKey, get key() { return key; } }; // handy for debugging
+
+/* ---- MIDI ---- */
+let midiAccess = null;
+function setMidiStatus(text, cls) {
+  const p = $('#midiStatus'); p.className = 'pill ' + (cls || ''); p.lastElementChild.textContent = text;
+}
+async function connectMidi(userAction) {
+  if (!navigator.requestMIDIAccess) {
+    setMidiStatus('This browser has no MIDI — use Chrome or Edge', 'warn');
+    if (userAction) alert('Web MIDI is not available in this browser.\n\nUse Chrome or Edge on Mac/Windows/Android. On iPhone/iPad, Safari does not support MIDI — use a Web MIDI–enabled browser app instead.');
+    return;
+  }
+  try {
+    midiAccess = await navigator.requestMIDIAccess();
+    midiAccess.onstatechange = refreshInputs;
+    refreshInputs();
+  } catch (e) { setMidiStatus('MIDI permission denied', 'warn'); }
+}
+function refreshInputs() {
+  const ins = [...midiAccess.inputs.values()];
+  const sel = $('#midiSelect');
+  const prev = sel.value || 'all';
+  sel.replaceChildren(new Option('All MIDI inputs', 'all'), ...ins.map(i => new Option(i.name, i.id)));
+  sel.value = ins.some(i => i.id === prev) ? prev : 'all';
+  sel.hidden = ins.length < 2;
+  for (const i of ins) i.onmidimessage = (sel.value === 'all' || sel.value === i.id) ? onMidi : null;
+  $('#midiBtn').hidden = ins.length > 0;
+  if (ins.length) setMidiStatus((sel.value === 'all' ? ins.map(i => i.name).join(', ') : ins.find(i => i.id === sel.value).name), 'ok');
+  else setMidiStatus('No piano found — plug it in via USB', 'warn');
+}
+function onMidi(e) {
+  const [st, d1, d2] = e.data, cmd = st & 0xf0;
+  if (cmd === 0x90 && d2 > 0) noteOn(d1, d2, 'midi');
+  else if (cmd === 0x80 || (cmd === 0x90 && d2 === 0)) noteOff(d1, 'midi');
+}
+
+/* ---- Computer keyboard ---- */
+const KEYMAP = { a:0, w:1, s:2, e:3, d:4, f:5, t:6, g:7, y:8, h:9, u:10, j:11, k:12, o:13, l:14, p:15, ';':16 };
+let kbOct = 60;
+const downKeys = new Map();
+addEventListener('keydown', e => {
+  if (e.metaKey || e.ctrlKey || e.altKey || e.repeat || /INPUT|SELECT|TEXTAREA/.test(e.target.tagName)) return;
+  const k = e.key.toLowerCase();
+  if (k === 'z') { kbOct = Math.max(24, kbOct - 12); return; }
+  if (k === 'x') { kbOct = Math.min(96, kbOct + 12); return; }
+  if (k in KEYMAP && !downKeys.has(k)) { const m = kbOct + KEYMAP[k]; downKeys.set(k, m); noteOn(m, 96, 'computer'); e.preventDefault(); }
+});
+addEventListener('keyup', e => { const k = e.key.toLowerCase(); if (downKeys.has(k)) { noteOff(downKeys.get(k), 'computer'); downKeys.delete(k); } });
+addEventListener('blur', () => { downKeys.forEach(m => noteOff(m)); downKeys.clear(); });
+
+/* ================================================================
+   Keyboard UI
+   ================================================================ */
+let kbLo = 36, kbHi = 96;
+const keyEls = {};
+const isBlack = m => [1,3,6,8,10].includes(m % 12);
+function buildKeyboard() {
+  const kb = $('#keyboard'); kb.innerHTML = '';
+  for (const k in keyEls) delete keyEls[k];
+  let wi = 0;
+  for (let m = kbLo; m <= kbHi; m++) {
+    const el = document.createElement('div'), black = isBlack(m);
+    el.className = 'key ' + (black ? 'black' : 'white');
+    el.dataset.m = m;
+    el.style.left = black ? `calc(${wi} * var(--ww) - var(--bw) / 2)` : `calc(${wi} * var(--ww))`;
+    el.innerHTML = '<span class="mark"></span>' + (m % 12 === 0 ? `<span class="lbl">C${m / 12 - 1}</span>` : '');
+    if (!black) wi++;
+    kb.appendChild(el); keyEls[m] = el;
+  }
+  kb.dataset.whites = wi;
+  sizeKeyboard(); renderKeyboardMarks(); renderKeyboardState();
+}
+function sizeKeyboard() {
+  const kb = $('#keyboard'), sc = $('#kbScroll'), W = +kb.dataset.whites;
+  const ww = Math.max(26, Math.min(48, (sc.clientWidth - 16) / W));
+  kb.style.setProperty('--ww', ww + 'px'); kb.style.setProperty('--bw', (ww * 0.62) + 'px');
+  kb.style.width = (W * ww) + 'px';
+  if (W * ww > sc.clientWidth) { const c = keyEls[60]; if (c) sc.scrollLeft = c.offsetLeft - sc.clientWidth / 2 + ww * 3.5; }
+}
+addEventListener('resize', sizeKeyboard);
+function renderKeyboardMarks() {
+  const sp = new Set(key.scale.map(n => n.pc));
+  for (const m in keyEls) {
+    const pc = m % 12, el = keyEls[m];
+    el.classList.toggle('scale', sp.has(pc));
+    el.classList.toggle('tonic', pc === key.tonicPc);
+  }
+}
+function renderKeyboardState() {
+  const ik = inKeyPcs(key);
+  for (const m in keyEls) {
+    const el = keyEls[m], mm = +m, pc = mm % 12, on = held.has(mm);
+    el.classList.toggle('on', on);
+    el.classList.toggle('in', on && ik.has(pc));
+    el.classList.toggle('out', on && !ik.has(pc));
+    el.classList.toggle('demo', demo.has(mm) && !on);
+    el.classList.toggle('hint', hintPcs.has(pc) && !on);
+    el.classList.toggle('target', !on && (targetMidi === mm || targetPcs.has(pc)));
+  }
+}
+function flashBad(m) { const el = keyEls[m]; if (!el) return; el.classList.remove('flash-bad'); void el.offsetWidth; el.classList.add('flash-bad'); }
+// pointer input on keys
+const pointerNotes = new Map();
+$('#keyboard').addEventListener('pointerdown', e => {
+  const el = e.target.closest('.key'); if (!el) return;
+  e.preventDefault();
+  const m = +el.dataset.m; pointerNotes.set(e.pointerId, m); noteOn(m, 96, 'screen');
+});
+const endPointer = e => { if (pointerNotes.has(e.pointerId)) { noteOff(pointerNotes.get(e.pointerId), 'screen'); pointerNotes.delete(e.pointerId); } };
+addEventListener('pointerup', endPointer); addEventListener('pointercancel', endPointer);
+
+function renderNowPlaying() {
+  const id = identify([...held], key), el = $('#nowPlaying');
+  if (!id) { el.innerHTML = '<span class="m">Play something…</span>'; return; }
+  let s = id.name;
+  if (id.type === 'chord') s += ` <span class="m">· ${id.roman} in ${key.label} · ${id.notes.join(' ')}</span>`;
+  if (id.type === 'interval') s += ` <span class="m">· ${id.sub}</span>`;
+  el.innerHTML = s;
+}
+
+/* ================================================================
+   Circle of fifths
+   ================================================================ */
+function polar(r, deg) { const a = (deg - 90) * Math.PI / 180; return [+(r * Math.cos(a)).toFixed(2), +(r * Math.sin(a)).toFixed(2)]; }
+function arcPath(r0, r1, a0, a1) {
+  const [x0, y0] = polar(r1, a0), [x1, y1] = polar(r1, a1), [x2, y2] = polar(r0, a1), [x3, y3] = polar(r0, a0);
+  return `M${x0} ${y0}A${r1} ${r1} 0 0 1 ${x1} ${y1}L${x2} ${y2}A${r0} ${r0} 0 0 0 ${x3} ${y3}Z`;
+}
+function arcLine(r, a0, a1) { const [x0, y0] = polar(r, a0), [x1, y1] = polar(r, a1); return `M${x0} ${y0}A${r} ${r} 0 ${a1 - a0 > 180 ? 1 : 0} 1 ${x1} ${y1}`; }
+
+function renderCircle() {
+  const k = state.idx, sel = key, out = [];
+  const rel = d => mod(d, 12);
+  const romanMaj = sel.mode === 'major' ? { [rel(k - 1)]: 'IV', [k]: 'I', [rel(k + 1)]: 'V' } : { [rel(k - 1)]: 'VI', [k]: 'III', [rel(k + 1)]: 'VII' };
+  const romanMin = sel.mode === 'major' ? { [rel(k - 1)]: 'ii', [k]: 'vi', [rel(k + 1)]: 'iii' } : { [rel(k - 1)]: 'iv', [k]: 'i', [rel(k + 1)]: 'v' };
+  const chord = identify([...held], key);
+  const liveMaj = chord?.type === 'chord' && chord.tpl.k === 'maj' ? circleIndexOfPc(chord.rootPc) : -1;
+  const liveMin = chord?.type === 'chord' && chord.tpl.k === 'min' ? mod(circleIndexOfPc(chord.rootPc) - 3, 12) : -1;
+
+  // mastery ring
+  for (let i = 0; i < 12; i++) {
+    const mj = mastery(i + '-major'), mn = mastery(i + '-minor');
+    if (mj > 0) out.push(`<path class="mastery" d="${arcLine(284, i * 30 - 13, i * 30 + 13)}" stroke="rgba(242,181,68,${0.15 + mj * 0.85})"/>`);
+    if (mn > 0) out.push(`<path class="mastery" d="${arcLine(158, i * 30 - 11, i * 30 + 11)}" stroke="rgba(242,181,68,${0.15 + mn * 0.85})" style="stroke-width:3"/>`);
+  }
+  for (let i = 0; i < 12; i++) {
+    const a0 = i * 30 - 15, a1 = i * 30 + 15;
+    // major segment
+    const isSelMaj = sel.mode === 'major' && i === k, isSelMin = sel.mode === 'minor' && i === k;
+    const majName = isSelMaj && sel.alt ? MAJ_ALT[i] : MAJ_NAMES[i];
+    const majAlt = i in MAJ_ALT ? (isSelMaj && sel.alt ? MAJ_NAMES[i] : MAJ_ALT[i]) : null;
+    const [mx, my] = polar(248, i * 30);
+    out.push(`<g class="seg${isSelMaj ? ' sel' : ''}${romanMaj[i] ? ' dia' : ''}${liveMaj === i && !isSelMaj ? ' live' : ''}" data-i="${i}" data-mode="major">
+      <path d="${arcPath(218, 278, a0, a1)}"/>
+      <text class="lbl-maj" x="${mx}" y="${my - (majAlt ? 6 : 0) - (romanMaj[i] ? 4 : 0)}">${pretty(majName)}</text>
+      ${majAlt ? `<text class="alt" x="${mx}" y="${my + 9 - (romanMaj[i] ? 4 : 0)}">${pretty(majAlt)}</text>` : ''}
+      ${romanMaj[i] ? `<text class="rn" x="${mx}" y="${my + (majAlt ? 20 : 14)}">${romanMaj[i]}</text>` : ''}
+    </g>`);
+    // minor segment
+    const minName = isSelMin && sel.alt ? MIN_ALT[i] : MIN_NAMES[i];
+    const minAlt = i in MIN_ALT ? (isSelMin && sel.alt ? MIN_NAMES[i] : MIN_ALT[i]) : null;
+    const [nx, ny] = polar(189, i * 30);
+    out.push(`<g class="seg${isSelMin ? ' sel' : ''}${romanMin[i] ? ' dia' : ''}${liveMin === i && !isSelMin ? ' live' : ''}" data-i="${i}" data-mode="minor">
+      <path d="${arcPath(162, 216, a0, a1)}"/>
+      <text class="lbl-min" x="${nx}" y="${ny - (minAlt ? 5 : 0) - (romanMin[i] ? 4 : 0)}">${pretty(minName)}m</text>
+      ${minAlt ? `<text class="alt" x="${nx}" y="${ny + 8 - (romanMin[i] ? 4 : 0)}">${pretty(minAlt)}m</text>` : ''}
+      ${romanMin[i] ? `<text class="rn" x="${nx}" y="${ny + (minAlt ? 17 : 12)}">${romanMin[i]}</text>` : ''}
+    </g>`);
+    // signature label just outside the ring
+    const [sx, sy] = polar(294, i * 30);
+    const sig = i === 0 ? '' : i < 6 ? `${i}♯` : i === 6 ? '6♯/6♭' : `${12 - i}♭`;
+    out.push(`<text class="sig${i === k ? ' cur' : ''}" x="${sx}" y="${sy}">${sig}</text>`);
+  }
+  // the key's 7 notes = a window of 7 neighbours on the circle
+  out.push(`<path class="keyarc" d="${arcLine(128, (k - 1) * 30, (k + 5) * 30)}"/>`);
+  // note ring
+  const hp = heldPcs(), ik = inKeyPcs(key), sp = new Set(key.scale.map(n => n.pc));
+  const polyPts = [];
+  for (let i = 0; i < 12; i++) {
+    const pc = mod(i * 7, 12), [x, y] = polar(128, i * 30);
+    const on = hp.has(pc);
+    if (on) polyPts.push([x, y]);
+    out.push(`<g class="nd${sp.has(pc) ? ' sc' : ''}${pc === key.tonicPc ? ' ton' : ''}${on ? ' on' + (ik.has(pc) ? '' : ' out') : ''}"><circle cx="${x}" cy="${y}" r="14"/><text x="${x}" y="${y + 1}">${pretty(spellPc(pc, key))}</text></g>`);
+  }
+  if (polyPts.length >= 2) {
+    const anyOut = [...hp].some(p => !ik.has(p));
+    out.splice(out.length - 12, 0, `<polygon class="poly${anyOut ? ' out' : ''}" points="${polyPts.map(p => p.join(',')).join(' ')}"/>`);
+  }
+  // centre text
+  if (chord && chord.type !== 'note') {
+    out.push(`<text class="c-big" y="-10">${chord.name}</text>`);
+    out.push(`<text class="c-sub" y="20">${chord.type === 'chord' ? chord.roman : chord.sub || ''}</text>`);
+    if (chord.type === 'chord') out.push(`<text class="c-small" y="40">${chord.sub}</text>`);
+  } else if (chord) {
+    const deg = key.scale.findIndex(n => n.pc === chord.pcs[0]);
+    out.push(`<text class="c-big" y="-6">${chord.name}</text>`);
+    out.push(`<text class="c-small" y="22">${deg >= 0 ? `${ORD[deg]} degree · ${(key.mode === 'major' ? DEG_MAJ : DEG_MIN)[deg]}` : 'not in key'}</text>`);
+  } else {
+    out.push(`<text class="c-big" y="-8" style="font-size:24px">${key.label}</text>`);
+    out.push(`<text class="c-small" y="18">${sigText(key)}</text>`);
+  }
+  $('#circle').innerHTML = out.join('');
+}
+$('#circle').addEventListener('click', e => {
+  const g = e.target.closest('.seg'); if (!g) return;
+  const i = +g.dataset.i, m = g.dataset.mode;
+  if (i === state.idx && m === state.mode) { if (key.hasAlt) setKey(i, m, !state.alt); else playScale(key); }
+  else setKey(i, m);
+});
+
+/* ================================================================
+   Key info panel
+   ================================================================ */
+function staffSvg(k) {
+  const SH = { F:8, C:5, G:9, D:6, A:4, E:7, B:3 }, FL = { B:3, E:7, A:4, D:6, G:2, C:5, F:1 };
+  const y = s => 47 - s * 4;
+  const acc = k.sharps.length ? k.sharps.map(n => [SH[n[0]], '♯']) : k.flats.map(n => [FL[n[0]], '♭']);
+  const w = Math.max(120, 44 + acc.length * 11 + 20);
+  let s = `<svg class="staff" viewBox="0 0 ${w} 64" width="${w * 1.3}">`;
+  for (let i = 0; i < 5; i++) s += `<line x1="0" x2="${w}" y1="${15 + i * 8}" y2="${15 + i * 8}"/>`;
+  s += `<text x="2" y="51" font-size="46">𝄞</text>`;
+  acc.forEach(([st, g], i) => { s += `<text x="${36 + i * 11}" y="${y(st) + (g === '♯' ? 5 : 3)}" font-size="${g === '♯' ? 17 : 19}">${g}</text>`; });
+  return s + '</svg>';
+}
+function renderInfo() {
+  const k = key, st = kstat(k.id);
+  const rel = makeKey(k.idx, k.mode === 'major' ? 'minor' : 'major');
+  const dom = makeKey(k.idx + 1, k.mode), sub = makeKey(k.idx - 1, k.mode);
+  const parIdx = (k.mode === 'major' ? MIN_NAMES : MAJ_NAMES).findIndex(n => pcOf(n) === k.tonicPc);
+  const par = makeKey(parIdx, k.mode === 'major' ? 'minor' : 'major');
+  const chords = settings.sevenths ? k.chords7 : k.chords;
+  const extra = k.mode === 'minor' ? (settings.sevenths ? k.harmV7 : k.harmV) : null;
+  const dn = k.mode === 'major' ? DEG_MAJ : DEG_MIN;
+  const acc = st.chordRight + st.chordWrong;
+  $('#info').innerHTML = `
+    <div class="key-head"><h2>${k.label}</h2>
+      <div class="mode-switch"><button data-m="major" class="${k.mode === 'major' ? 'on' : ''}">Major</button><button data-m="minor" class="${k.mode === 'minor' ? 'on' : ''}">Minor</button></div></div>
+    <div class="sigline"><b>${sigText(k)}</b>${k.sigType ? ' · ' + sigList(k) : ''} · relative ${k.mode === 'major' ? 'minor' : 'major'}: <b>${rel.label}</b></div>
+    ${staffSvg(k)}
+    <h3>Scale <button class="ghost small" id="hearScale" style="padding:2px 8px;margin-left:6px">▶ hear</button></h3>
+    <div class="chips">${k.scale.map((n, i) => `<div class="chip${i === 0 ? ' ton' : ''}" data-pc="${n.pc}" title="${dn[i]}"><small>${i + 1}</small><b>${pretty(n.name)}</b></div>`).join('')}</div>
+    <h3>Chords in this key <label class="toggle" style="margin-left:8px;text-transform:none;letter-spacing:0"><input type="checkbox" id="sev" ${settings.sevenths ? 'checked' : ''}> 7ths</label></h3>
+    <div class="chords">${chords.map(c => chordCard(c)).join('')}${extra ? chordCard(extra, true) : ''}</div>
+    ${k.mode === 'minor' ? `<div class="muted small" style="margin-top:6px">Dashed: in minor, the V chord is usually made major by raising the 7th (harmonic minor) — that's the ${pretty(spellScale(k.tonic, SCALES.harmonic)[6].name)}.</div>` : ''}
+    <h3>Neighbours</h3>
+    <div class="nbrs">
+      <button data-go="${rel.idx},${rel.mode}"><span>Relative</span>${rel.label}</button>
+      <button data-go="${dom.idx},${dom.mode}"><span>Dominant ↻</span>${dom.label}</button>
+      <button data-go="${sub.idx},${sub.mode}"><span>Subdominant ↺</span>${sub.label}</button>
+      <button data-go="${par.idx},${par.mode}"><span>Parallel</span>${par.label}</button>
+    </div>
+    <div class="stats">Your progress in ${k.label}: scale runs <b>${st.scaleRuns}</b>${st.scaleBest ? ` (best <b>${(st.scaleBest / 1000).toFixed(1)}s</b>)` : ''} · chords <b>${st.chordRight}</b>${acc ? ` (${Math.round(st.chordRight / acc * 100)}% right)` : ''} · progressions <b>${st.progRuns}</b></div>`;
+  renderInfoLive();
+}
+const chordCard = (c, extra) => `<div class="chord${extra ? ' extra' : ''}" data-pcs="${c.pcs.join(',')}"><div class="r">${c.roman}</div><div class="n">${c.name}</div><div class="t">${c.noteNames}</div></div>`;
+function renderInfoLive() {
+  const hp = heldPcs(), hpArr = [...hp];
+  document.querySelectorAll('#info .chip').forEach(el => el.classList.toggle('live', hp.has(+el.dataset.pc)));
+  document.querySelectorAll('#info .chord').forEach(el => el.classList.toggle('live', hpArr.length > 2 && sameSet(el.dataset.pcs.split(',').map(Number), hpArr)));
+}
+$('#info').addEventListener('click', e => {
+  const t = e.target;
+  if (t.closest('.mode-switch button')) { const m = t.closest('button').dataset.m; if (m !== state.mode) setKey(state.idx, m); return; }
+  if (t.id === 'hearScale') return playScale(key);
+  const chip = t.closest('.chip'); if (chip) return playPc(+chip.dataset.pc);
+  const ch = t.closest('.chord'); if (ch) return playChord(ch.dataset.pcs.split(',').map(Number));
+  const go = t.closest('[data-go]'); if (go) { const [i, m] = go.dataset.go.split(','); return setKey(+i, m); }
+});
+$('#info').addEventListener('change', e => { if (e.target.id === 'sev') { setSetting('sevenths', e.target.checked); renderInfo(); modes[curMode].keyChanged?.(); } });
+
+/* ================================================================
+   Practice modes
+   ================================================================ */
+const P = () => $('#practice');
+function clearTargets() { hintPcs = new Set(); targetMidi = null; targetPcs = new Set(); renderKeyboardState(); }
+const nextKeyControls = () => `
+  <label class="toggle"><input type="checkbox" data-set="autoNext" ${settings.autoNext ? 'checked' : ''}> When done, move to</label>
+  <select data-set="nextDir">
+    <option value="cw" ${settings.nextDir === 'cw' ? 'selected' : ''}>next key ↻ (up a 5th)</option>
+    <option value="ccw" ${settings.nextDir === 'ccw' ? 'selected' : ''}>next key ↺ (up a 4th)</option>
+    <option value="random" ${settings.nextDir === 'random' ? 'selected' : ''}>a random key</option>
+    <option value="stay" ${settings.nextDir === 'stay' ? 'selected' : ''}>same key again</option>
+  </select>`;
+P().addEventListener('change', e => {
+  const s = e.target.dataset.set; if (!s) return;
+  setSetting(s, e.target.type === 'checkbox' ? e.target.checked : e.target.value);
+  if (s === 'sevenths') renderInfo();
+  modes[curMode].settingChanged?.(s);
+});
+let autoTimer = null;
+function scheduleNext(fn, ms) { clearTimeout(autoTimer); autoTimer = setTimeout(fn, ms); }
+
+/* ---------- Explore ---------- */
+const Explore = {
+  enter() { clearTargets(); this.render(); },
+  keyChanged() { this.render(); },
+  render() {
+    const k = key;
+    const dom = makeKey(k.idx + 1, k.mode), sub = makeKey(k.idx - 1, k.mode);
+    const newNote = pretty(dom.scale.find(n => !k.scale.some(m => m.name === n.name))?.name || '');
+    const lostNote = pretty(k.scale.find(n => !dom.scale.some(m => m.name === n.name))?.name || '');
+    const tips = [];
+    tips.push(`<b>A key is 7 neighbours on the circle.</b> The green arc in the middle shows the 7 notes of ${k.label} — they sit side by side on the circle of fifths.`);
+    tips.push(`<b>One step clockwise changes one note.</b> ${k.label} → ${dom.label}: ${lostNote} becomes ${newNote}. That's why neighbouring keys sound so close.`);
+    if (k.sigType === 'sharp') tips.push(`<b>Sharps come in a fixed order:</b> F♯ C♯ G♯ D♯ A♯ E♯ B♯ (“Father Charles Goes Down And Ends Battle”). In a major key the <b>last sharp is one half-step below the tonic</b> — here ${pretty(k.sharps.at(-1))}${k.mode === 'major' ? ` → ${pretty(k.tonic)}` : ''}.`);
+    else if (k.sigType === 'flat') tips.push(`<b>Flats come in reverse order:</b> B♭ E♭ A♭ D♭ G♭ C♭ F♭. In a major key the <b>second-to-last flat names the key</b>${k.flats.length > 1 && k.mode === 'major' ? ` — here ${pretty(k.flats.at(-2))}` : ' (F major is the one to memorise: 1 flat)'}.`);
+    else tips.push(`<b>${k.label} has no sharps or flats</b> — all white keys. Every other key adds sharps going clockwise or flats going counter-clockwise.`);
+    tips.push(k.mode === 'major'
+      ? `<b>The three major chords</b> I, IV, V (${k.chords[0].name}, ${k.chords[3].name}, ${k.chords[4].name}) sit next to each other on the outer ring; the minor chords ii, iii, vi sit right inside them. Together that wedge is almost every chord you'll need in ${k.label}.`
+      : `<b>${k.label} shares its notes with ${makeKey(k.idx, 'major').label}</b> (its relative major). Same key signature, different home note.`);
+    tips.push(`<b>Play a chord</b> — the centre names it and gives its Roman numeral in ${k.label}. Green notes are in the key, red ones are outside it.`);
+    P().innerHTML = `<div class="two">
+      <div><h3 style="margin-top:0">What you're playing</h3><div class="live-box" id="exLive"></div>
+        <div class="row" style="margin-top:14px"><button id="exScale">▶ Hear the ${k.label} scale</button><button id="exCad">▶ Hear I–IV–V–I</button></div></div>
+      <div><h3 style="margin-top:0">How ${k.label} works</h3><ul class="tips">${tips.map(t => `<li>${t}</li>`).join('')}</ul></div></div>`;
+    $('#exScale').onclick = () => playScale(key);
+    $('#exCad').onclick = () => { const c = key.mode === 'major' ? key.chords : [key.chords[0], key.chords[3], key.harmV, key.chords[0]]; const seq = key.mode === 'major' ? [c[0], c[3], c[4], c[0]] : c; playSequence(seq.map((ch, i) => ({ midis: voice(ch.pcs), at: i * 0.9, dur: 0.85 }))); };
+    this.heldChanged();
+  },
+  heldChanged() {
+    const el = $('#exLive'); if (!el) return;
+    const id = identify([...held], key);
+    if (!id) { el.innerHTML = '<span class="muted">Play a note or a chord on your piano…</span>'; return; }
+    const ik = inKeyPcs(key), allIn = id.pcs.every(p => ik.has(p));
+    el.innerHTML = `<div class="big">${id.name}${id.type === 'chord' ? `<span class="sub">${id.roman}</span>` : ''}</div>
+      <div><div>${id.type === 'chord' ? id.sub + ' chord' : id.type === 'interval' ? id.sub : id.type === 'note' ? 'single note' : 'notes'}</div>
+      <div class="notes">${id.notes.join(' · ')}</div>
+      <div class="small" style="color:${allIn ? 'var(--in)' : 'var(--out)'}">${allIn ? `all notes in ${key.label}` : `uses notes outside ${key.label}`}</div></div>`;
+  },
+};
+
+/* ---------- Scale drill ---------- */
+const Scales = {
+  enter() { this.reset(); },
+  keyChanged() { this.reset(); },
+  settingChanged(s) { if (s === 'minorVariant' || s === 'showHints') this.reset(); },
+  reset() {
+    clearInterval(this.tick); clearTimeout(autoTimer);
+    const k = key, variant = k.mode === 'major' ? 'major' : settings.minorVariant;
+    const asc = spellScale(k.tonic, SCALES[variant]);
+    const descSrc = variant === 'melodic' ? spellScale(k.tonic, SCALES.natural) : asc;
+    const f = k.mode === 'major' ? FINGERING[k.tonicPc] : null;
+    this.seq = [...asc.map((n, i) => ({ ...n, dir: 'up', rh: f?.rh[i], lh: f?.lh[i] })), { ...asc[0], dir: 'up', rh: f?.rh[7], lh: f?.lh[7] },
+      ...[6,5,4,3,2,1,0].map(i => ({ ...descSrc[i], dir: 'down', rh: f?.rh[i], lh: f?.lh[i] }))];
+    this.step = 0; this.mistakes = 0; this.prev = null; this.t0 = null; this.done = false; this.variant = variant;
+    this.render();
+  },
+  render() {
+    const k = key, st = kstat(k.id), f = !!FINGERING[k.tonicPc] && k.mode === 'major';
+    P().innerHTML = `
+      <div class="row"><div><div class="prompt">Play one octave up and back down — any octave, ${f ? 'try the fingering shown' : 'focus on even notes'}</div>
+        <div class="big">${k.label}${k.mode === 'minor' ? `<span class="sub">${this.variant} minor</span>` : ''}</div></div>
+        <div class="spacer"></div>
+        <div class="score"><span><b id="scTime">0.0s</b>time</span><span><b id="scMiss">0</b>mistakes</span><span><b>${st.scaleBest ? (st.scaleBest / 1000).toFixed(1) + 's' : '—'}</b>best</span></div></div>
+      <div class="seq" id="scSeq">${this.seq.map((n, i) => `${i === 8 ? '<span class="arrow">↩</span>' : ''}<div class="s" data-i="${i}"><b>${pretty(n.name)}</b>${f ? `<small>R ${n.rh}</small><small>L ${n.lh}</small>` : ''}</div>`).join('')}</div>
+      <div class="feedback" id="scFb"></div>
+      <div class="row">
+        <button id="scRestart">Restart</button><button id="scHear">▶ Hear it</button>
+        ${k.mode === 'minor' ? `<select data-set="minorVariant">${['natural','harmonic','melodic'].map(v => `<option value="${v}" ${settings.minorVariant === v ? 'selected' : ''}>${v} minor</option>`).join('')}</select>` : ''}
+        <label class="toggle"><input type="checkbox" data-set="showHints" ${settings.showHints ? 'checked' : ''}> Show next note on keyboard</label>
+        <span class="spacer"></span>${nextKeyControls()}
+      </div>
+      ${f ? '' : `<div class="muted small" style="margin-top:8px">Fingerings are shown for major scales. Minor scales mostly share the fingering of the major scale with the same starting note.</div>`}`;
+    $('#scRestart').onclick = () => this.reset();
+    $('#scHear').onclick = () => { const base = 60 + key.tonicPc - (key.tonicPc > 6 ? 12 : 0); let m = base, ev = []; this.seq.forEach((n, i) => { if (i > 0) { const dir = n.dir === 'up' ? 1 : -1; m += dir; while (m % 12 !== n.pc) m += dir; } ev.push({ midis: [m], at: i * 0.25, dur: 0.28 }); }); playSequence(ev); };
+    this.update();
+  },
+  update() {
+    document.querySelectorAll('#scSeq .s').forEach((el, i) => { el.classList.toggle('done', i < this.step); el.classList.toggle('cur', i === this.step && !this.done); });
+    $('#scMiss').textContent = this.mistakes;
+    targetPcs = new Set(settings.showHints && !this.done ? [this.seq[this.step].pc] : []);
+    renderKeyboardState();
+  },
+  noteOn(m) {
+    if (this.done) return;
+    if (m === this.prev) return;
+    const exp = this.seq[this.step];
+    const dirOk = this.prev === null || (exp.dir === 'up' ? m > this.prev : m < this.prev);
+    if (m % 12 === exp.pc && dirOk) {
+      if (this.step === 0) { this.t0 = performance.now(); this.tick = setInterval(() => { $('#scTime') && ($('#scTime').textContent = ((performance.now() - this.t0) / 1000).toFixed(1) + 's'); }, 100); }
+      this.prev = m; this.step++;
+      $('#scFb').textContent = ''; $('#scFb').className = 'feedback';
+      if (this.step === this.seq.length) return this.finish();
+    } else {
+      this.mistakes++; flashBad(m);
+      const fb = $('#scFb'); fb.className = 'feedback bad';
+      fb.textContent = m % 12 === exp.pc ? `Right note, wrong direction — keep going ${exp.dir}.` : `That was ${pretty(spellPc(m % 12, key))} — next is ${pretty(exp.name)}.`;
+    }
+    this.update();
+  },
+  finish() {
+    clearInterval(this.tick); this.done = true;
+    const ms = performance.now() - this.t0, st = kstat(key.id);
+    const best = !st.scaleBest || ms < st.scaleBest;
+    st.scaleRuns++; if (best && this.mistakes === 0) st.scaleBest = Math.round(ms);
+    save();
+    $('#scTime').textContent = (ms / 1000).toFixed(1) + 's';
+    const fb = $('#scFb'); fb.className = 'feedback ok';
+    fb.textContent = `${this.mistakes === 0 ? 'Clean run!' : 'Done!'} ${(ms / 1000).toFixed(1)}s, ${this.mistakes} mistake${this.mistakes === 1 ? '' : 's'}${best && this.mistakes === 0 ? ' — new best' : ''}.` + (settings.autoNext && settings.nextDir !== 'stay' ? ' Next key coming…' : '');
+    this.update(); renderCircle(); renderInfo();
+    if (settings.autoNext) scheduleNext(() => nextKey(), 1800);
+  },
+};
+
+/* ---------- Chord drill ---------- */
+const Chords = {
+  enter() { this.right = 0; this.wrong = 0; this.streak = 0; this.times = []; this.newTarget(); },
+  keyChanged() { this.newTarget(); },
+  settingChanged() { this.newTarget(); },
+  pool() {
+    const base = settings.sevenths ? key.chords7 : key.chords;
+    return key.mode === 'minor' ? [...base, settings.sevenths ? key.harmV7 : key.harmV] : base;
+  },
+  newTarget() {
+    const pool = this.pool();
+    let t; do { t = pick(pool); } while (this.target && pool.length > 1 && t.name === this.target.name);
+    this.target = t; this.bad = false; this.t0 = performance.now(); this.solved = false;
+    this.render();
+  },
+  render() {
+    const t = this.target, avg = this.times.length ? (this.times.reduce((a, b) => a + b) / this.times.length / 1000).toFixed(1) + 's' : '—';
+    P().innerHTML = `
+      <div class="row"><div><div class="prompt">In <b>${key.label}</b>, play the chord:</div>
+        <div class="big">${t.roman}<span class="sub" id="chName" style="visibility:${settings.showNames ? 'visible' : 'hidden'}">${t.name}</span></div></div>
+        <div class="spacer"></div>
+        <div class="score"><span><b>${this.right}</b>right</span><span><b>${this.wrong}</b>wrong</span><span><b>${this.streak}</b>streak</span><span><b>${avg}</b>avg time</span></div></div>
+      <div class="feedback" id="chFb"></div>
+      <div class="row">
+        <button id="chHear">▶ Hear it</button><button id="chReveal">Show notes</button><button id="chSkip">Skip</button>
+        <label class="toggle"><input type="checkbox" data-set="showNames" ${settings.showNames ? 'checked' : ''}> Show chord name</label>
+        <label class="toggle"><input type="checkbox" data-set="sevenths" ${settings.sevenths ? 'checked' : ''}> 7th chords</label>
+        <span class="spacer"></span>
+        <button class="ghost" id="chKey">Change key ↻</button>
+      </div>
+      <div class="muted small" style="margin-top:10px">Any inversion and any octave counts — just hold all the notes of the chord at once. Hide the chord name to train thinking in Roman numerals: that's what makes you fluent in every key.</div>`;
+    $('#chHear').onclick = () => playChord(t.pcs);
+    $('#chReveal').onclick = () => { hintPcs = new Set(t.pcs); renderKeyboardState(); $('#chFb').className = 'feedback'; $('#chFb').textContent = `${t.roman} = ${t.name}: ${t.noteNames}`; this.bad = true; };
+    $('#chSkip').onclick = () => { clearTargets(); this.streak = 0; this.newTarget(); };
+    $('#chKey').onclick = () => nextKey(settings.nextDir === 'stay' ? 'cw' : settings.nextDir);
+    clearTargets();
+  },
+  heldChanged() {
+    if (this.solved) return;
+    const hp = [...heldPcs()], t = this.target;
+    if (hp.length >= t.pcs.length) {
+      if (sameSet(hp, t.pcs)) {
+        this.solved = true;
+        const ms = performance.now() - this.t0, st = kstat(key.id);
+        if (!this.bad) { this.right++; this.streak++; st.chordRight++; this.times.push(ms); if (this.times.length > 20) this.times.shift(); }
+        save();
+        const fb = $('#chFb'); fb.className = 'feedback ok'; fb.textContent = `✓ ${t.name} — ${(ms / 1000).toFixed(1)}s`;
+        clearTargets(); renderCircle();
+        scheduleNext(() => this.newTarget(), 700);
+      } else if (!this.bad && hp.some(p => !t.pcs.includes(p))) {
+        this.bad = true; this.wrong++; this.streak = 0; kstat(key.id).chordWrong++; save();
+        const id = identify([...held], key);
+        const fb = $('#chFb'); fb.className = 'feedback bad'; fb.textContent = `That's ${id ? id.name : 'not it'} — try again (it won't count, but finish it anyway).`;
+      }
+    }
+  },
+};
+
+/* ---------- Progressions ---------- */
+const PROGS = {
+  major: [
+    { name: 'Pop: I–V–vi–IV', d: [0,4,5,3] },
+    { name: '50s: I–vi–IV–V', d: [0,5,3,4] },
+    { name: 'Jazz: ii–V–I', d: [1,4,0] },
+    { name: 'Cadence: I–IV–V–I', d: [0,3,4,0] },
+    { name: 'Canon: I–V–vi–iii–IV–I–IV–V', d: [0,4,5,2,3,0,3,4] },
+    { name: 'Circle: vi–ii–V–I', d: [5,1,4,0] },
+  ],
+  minor: [
+    { name: 'Epic: i–VI–III–VII', d: [0,5,2,6] },
+    { name: 'Cadence: i–iv–V–i', d: [0,3,'V',0] },
+    { name: 'Jazz: ii°–V–i', d: [1,'V',0] },
+    { name: 'Andalusian: i–VII–VI–V', d: [0,6,5,'V'] },
+    { name: 'Pop minor: i–iv–VII–III', d: [0,3,6,2] },
+  ],
+};
+const Progs = {
+  enter() { this.reset(); },
+  keyChanged() { this.reset(); },
+  settingChanged() { this.reset(); },
+  list() { return PROGS[key.mode]; },
+  chords() {
+    const p = this.list()[Math.min(settings.prog, this.list().length - 1)], s7 = settings.sevenths;
+    return p.d.map(d => d === 'V' ? (s7 ? key.harmV7 : key.harmV) : (s7 ? key.chords7 : key.chords)[d]);
+  },
+  reset() {
+    clearTimeout(autoTimer); clearDemo();
+    this.seq = this.chords(); this.step = 0; this.t0 = null; this.done = false; this.bad = 0;
+    this.render();
+  },
+  render() {
+    const list = this.list(), sel = Math.min(settings.prog, list.length - 1);
+    P().innerHTML = `
+      <div class="row"><div><div class="prompt">Play each chord in turn (any inversion) in</div><div class="big">${key.label}</div></div>
+        <div class="spacer"></div>
+        <div class="score"><span><b id="pgTime">—</b>time</span><span><b>${kstat(key.id).progRuns}</b>runs in this key</span></div></div>
+      <div class="progcards" id="pgCards">${this.seq.map((c, i) => `<div class="pcard" data-i="${i}"><div class="r">${c.roman}</div><div class="n" style="visibility:${settings.showNames ? 'visible' : 'hidden'}">${c.name}</div></div>`).join('')}</div>
+      <div class="feedback" id="pgFb"></div>
+      <div class="row">
+        <select data-set="prog">${list.map((p, i) => `<option value="${i}" ${i === sel ? 'selected' : ''}>${p.name}</option>`).join('')}</select>
+        <button id="pgHear">▶ Play it for me</button><button id="pgRestart">Restart</button>
+        <label class="toggle"><input type="checkbox" data-set="showNames" ${settings.showNames ? 'checked' : ''}> Show chord names</label>
+        <label class="toggle"><input type="checkbox" data-set="sevenths" ${settings.sevenths ? 'checked' : ''}> 7ths</label>
+      </div>
+      <div class="row">${nextKeyControls()}</div>
+      <div class="muted small" style="margin-top:10px">This is the heart of learning keys: the same progression, transposed around the circle. Think in numbers (I, IV, V…) instead of letter names, and every key starts to feel the same under your hands.</div>`;
+    $('#pgHear').onclick = () => playSequence(this.seq.map((c, i) => ({ midis: voice(c.pcs), at: i * 1.0, dur: 0.95, cb: () => document.querySelectorAll('#pgCards .pcard').forEach((el, j) => el.classList.toggle('demo', j === i)) })).concat([{ midis: [], at: this.seq.length * 1.0, dur: 0.01, cb: () => document.querySelectorAll('#pgCards .pcard').forEach(el => el.classList.remove('demo')) }]));
+    $('#pgRestart').onclick = () => this.reset();
+    this.update();
+  },
+  update() {
+    document.querySelectorAll('#pgCards .pcard').forEach((el, i) => { el.classList.toggle('done', i < this.step); el.classList.toggle('cur', i === this.step && !this.done); });
+  },
+  heldChanged() {
+    if (this.done) return;
+    const hp = [...heldPcs()], t = this.seq[this.step];
+    if (hp.length >= t.pcs.length && sameSet(hp, t.pcs)) {
+      if (this.step === 0) this.t0 = performance.now();
+      this.step++; $('#pgFb').textContent = '';
+      if (this.step === this.seq.length) {
+        this.done = true;
+        const ms = performance.now() - this.t0, st = kstat(key.id); st.progRuns++; save();
+        $('#pgTime').textContent = (ms / 1000).toFixed(1) + 's';
+        const fb = $('#pgFb'); fb.className = 'feedback ok';
+        const nk = settings.nextDir === 'cw' ? makeKey(key.idx + 1, key.mode) : settings.nextDir === 'ccw' ? makeKey(key.idx - 1, key.mode) : null;
+        fb.textContent = `✓ Nice! ${(ms / 1000).toFixed(1)}s.` + (settings.autoNext && settings.nextDir !== 'stay' ? ` Now the same thing in ${nk ? nk.label : 'a new key'}…` : '');
+        renderCircle(); renderInfo();
+        if (settings.autoNext) scheduleNext(() => nextKey(), 1800);
+      }
+      this.update();
+    } else if (hp.length >= t.pcs.length && hp.some(p => !t.pcs.includes(p))) {
+      const id = identify([...held], key), fb = $('#pgFb');
+      fb.className = 'feedback bad'; fb.textContent = `That's ${id?.name || 'not it'} — ${t.roman} is ${t.name} (${t.noteNames}).`;
+    }
+  },
+};
+
+/* ---------- Theory quiz ---------- */
+const Quiz = {
+  enter() { this.right = 0; this.total = 0; this.streak = 0; this.next(); },
+  keyChanged() { if (settings.quizScope === 'current') this.next(); else this.render(); },
+  settingChanged(s) { if (s === 'quizScope') this.next(); },
+  randKey() { return settings.quizScope === 'current' ? key : makeKey(rand(12), Math.random() < 0.7 ? 'major' : 'minor'); },
+  gens() {
+    const g = {
+      degree: () => { const k = this.randKey(), d = 1 + rand(6), n = k.scale[d], dn = (k.mode === 'major' ? DEG_MAJ : DEG_MIN)[d];
+        return { k, text: `Play the <b>${dn}</b> (${ORD[d]} degree) of <b>${k.label}</b>`, kind: 'single', ans: [n.pc],
+          explain: `${k.label}: ${k.scale.map(s => pretty(s.name)).join(' ')} — the ${ORD[d]} note is <b>${pretty(n.name)}</b>.` }; },
+      signature: () => { let k, i = 0; do { k = this.randKey(); } while (!k.sigType && i++ < 30); if (!k.sigType) return null;
+        const list = k.sharps.length ? k.sharps : k.flats;
+        return { k, text: `Play all the <b>${k.sigType}s</b> in the key of <b>${k.label}</b> (one at a time is fine)`, kind: 'set', ans: list.map(pcOf),
+          explain: `${k.label} has ${sigText(k)}: <b>${list.map(pretty).join(' ')}</b>${k.sigType === 'sharp' ? ' (always in the order F C G D A E B)' : ' (always in the order B E A D G C F)'}.` }; },
+      relative: () => { const k = this.randKey(), r = makeKey(k.idx, k.mode === 'major' ? 'minor' : 'major');
+        return { k, text: `Play the tonic of the <b>relative ${r.mode}</b> of <b>${k.label}</b>`, kind: 'single', ans: [r.tonicPc],
+          explain: `${k.label} and <b>${r.label}</b> share the same key signature (${sigText(k)}). ${k.mode === 'major' ? 'Relative minor = 6th note of the major scale (or 3 half-steps down).' : 'Relative major = 3rd note of the minor scale (3 half-steps up).'}` }; },
+      sigToKey: () => { if (settings.quizScope === 'current') return null; const n = 1 + rand(6), sharp = Math.random() < 0.5, k = makeKey(sharp ? n : 12 - n, 'major');
+        return { k, text: `Which <b>major</b> key has <b>${n} ${sharp ? 'sharp' : 'flat'}${n > 1 ? 's' : ''}</b>? Play its tonic.`, kind: 'single', ans: [k.tonicPc],
+          explain: `<b>${k.label}</b>: ${sigList(k)}. ${sharp ? 'Trick: the last sharp is a half-step below the key.' : n === 1 ? 'One flat = F major (memorise this one).' : 'Trick: the second-to-last flat names the key.'}` }; },
+      chordTones: () => { const k = this.randKey(), c = pick(settings.sevenths ? k.chords7 : k.chords);
+        return { k, text: `Play the notes of the <b>${c.roman}</b> chord in <b>${k.label}</b>`, kind: 'set', ans: c.pcs,
+          explain: `${c.roman} in ${k.label} = <b>${c.name}</b>: ${c.noteNames}.` }; },
+      neighbour: () => { const k = this.randKey(), cw = Math.random() < 0.5, n = makeKey(k.idx + (cw ? 1 : -1), k.mode);
+        return { k, text: `Which key is one step <b>${cw ? 'clockwise ↻' : 'counter-clockwise ↺'}</b> from <b>${k.label}</b> on the circle? Play its tonic.`, kind: 'single', ans: [n.tonicPc],
+          explain: `<b>${n.label}</b>. ${cw ? 'Clockwise = up a perfect 5th, one more sharp (or one less flat).' : 'Counter-clockwise = up a perfect 4th, one more flat (or one less sharp).'}` }; },
+    };
+    return Object.values(g);
+  },
+  next() {
+    clearTimeout(autoTimer); clearTargets();
+    let q = null; while (!q) q = pick(this.gens())();
+    this.q = q; this.got = new Set(); this.answered = false;
+    this.render();
+  },
+  render() {
+    const q = this.q;
+    P().innerHTML = `
+      <div class="row"><div style="flex:1;min-width:240px"><div class="prompt">Answer on your piano</div><div style="font-size:24px;margin-top:6px" id="qText">${q.text}</div></div>
+        <div class="score"><span><b>${this.right}/${this.total}</b>correct</span><span><b>${this.streak}</b>streak</span></div></div>
+      <div id="qProg" class="muted small" style="margin-top:8px;min-height:20px"></div>
+      <div id="qRes"></div>
+      <div class="row" style="margin-top:12px">
+        <button id="qNext" class="${this.answered ? 'primary' : ''}">${this.answered ? 'Next question →' : 'Skip'}</button>
+        <select data-set="quizScope"><option value="all" ${settings.quizScope === 'all' ? 'selected' : ''}>All keys</option><option value="current" ${settings.quizScope === 'current' ? 'selected' : ''}>Only ${key.label}</option></select>
+      </div>`;
+    $('#qNext').onclick = () => { if (!this.answered) { this.total++; this.streak = 0; } this.next(); };
+  },
+  noteOn(m) {
+    if (this.answered) return;
+    const q = this.q, pc = m % 12, k = q.k;
+    if (q.kind === 'single') return this.answer(q.ans.includes(pc), pc);
+    if (!q.ans.includes(pc)) return this.answer(false, pc);
+    this.got.add(pc);
+    $('#qProg').textContent = `${this.got.size} of ${q.ans.length}: ${[...this.got].map(p => pretty(spellPc(p, k))).join(' ')}`;
+    if (this.got.size === q.ans.length) this.answer(true);
+  },
+  answer(ok, pc) {
+    this.answered = true; this.total++;
+    if (ok) { this.right++; this.streak++; } else this.streak = 0;
+    hintPcs = new Set(this.q.ans); renderKeyboardState();
+    this.render();
+    $('#qRes').innerHTML = `<div class="result${ok ? '' : ' bad'}">${ok ? '✓ Correct. ' : `✗ ${pc != null ? `You played ${pretty(spellPc(pc, this.q.k))}. ` : ''}`}${this.q.explain}</div>`;
+    if (ok) scheduleNext(() => this.next(), 2600);
+  },
+};
+
+const modes = { explore: Explore, scales: Scales, chords: Chords, progressions: Progs, quiz: Quiz };
+let curMode = 'explore';
+function setMode(m) {
+  clearTimeout(autoTimer); clearInterval(Scales.tick); clearDemo();
+  curMode = m;
+  document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.mode === m));
+  modes[m].enter();
+}
+$('#tabs').addEventListener('click', e => { const b = e.target.closest('button'); if (b) setMode(b.dataset.mode); });
+
+/* ================================================================
+   Boot
+   ================================================================ */
+$('#midiBtn').onclick = () => connectMidi(true);
+$('#midiSelect').onchange = refreshInputs;
+$('#soundOn').checked = settings.sound; $('#echoMidi').checked = settings.echo;
+$('#soundOn').onchange = e => setSetting('sound', e.target.checked);
+$('#echoMidi').onchange = e => { setSetting('echo', e.target.checked); if (e.target.checked) audio(); };
+buildKeyboard();
+setKey(0, 'major');
+setMode('explore');
+// Try to connect silently (works without a prompt once allowed)
+if (navigator.permissions && navigator.requestMIDIAccess) {
+  navigator.permissions.query({ name: 'midi' }).then(p => { if (p.state === 'granted') connectMidi(); }).catch(() => {});
+} else if (!navigator.requestMIDIAccess) setMidiStatus('No MIDI in this browser — use Chrome/Edge', 'warn');
+</script>
+</body>
+</html>
