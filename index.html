@@ -185,6 +185,60 @@ main{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:16px;
 .key.flash-bad{animation:shake .3s}
 @keyframes shake{25%{transform:translateX(-2px)}75%{transform:translateX(2px)}}
 .key.on .lbl{color:#063a2b}
+
+/* game bar */
+.game{display:flex;align-items:center;gap:12px;padding:5px 12px;border-radius:99px;background:var(--panel2);border:1px solid var(--line2);cursor:pointer;position:relative;font-size:13px}
+.game .streak{font-weight:700;color:#ff9f43}
+.game .streak.off{color:var(--faint);filter:grayscale(1)}
+.game .lvl{font-weight:700;color:var(--gold)}
+.xpbar{width:70px;height:7px;border-radius:9px;background:var(--line2);overflow:hidden}
+.xpbar i{display:block;height:100%;background:linear-gradient(90deg,var(--gold),#ffd77a);border-radius:9px;transition:width .4s}
+.game .today{color:var(--muted)}
+.game .today.met{color:var(--in)}
+.xpfly{position:absolute;right:8px;top:-4px;font-weight:800;color:var(--gold);pointer-events:none;animation:fly 1s ease-out forwards}
+@keyframes fly{from{opacity:1;transform:translateY(0)}to{opacity:0;transform:translateY(-26px)}}
+.toasts{position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:50;display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none}
+.toast{padding:10px 18px;border-radius:12px;background:#232836;border:1px solid var(--line2);box-shadow:0 10px 30px rgba(0,0,0,.45);font-weight:600;animation:pop .35s cubic-bezier(.2,1.6,.4,1)}
+.toast.big{background:var(--gold);color:#1a1405;border-color:var(--gold);font-size:17px}
+.toast.out{opacity:0;transform:translateY(-8px);transition:all .3s}
+@keyframes pop{from{opacity:0;transform:scale(.7)}to{opacity:1;transform:scale(1)}}
+
+/* loop challenge */
+.lp-stage{display:flex;align-items:center;gap:20px;flex-wrap:wrap;margin:6px 0 4px}
+.lp-big{font-size:46px;font-weight:800;letter-spacing:-.02em;min-width:150px;line-height:1.05}
+.lp-big.ok{color:var(--in)} .lp-big.bad{color:var(--out)} .lp-big.count{color:var(--gold)}
+.lp-big small{display:block;font-size:14px;font-weight:500;color:var(--muted);letter-spacing:0}
+.pcard .beats{display:flex;justify-content:center;gap:4px;margin-top:8px}
+.pcard .beats i{width:7px;height:7px;border-radius:50%;background:var(--line2)}
+.pcard .beats i.on{background:var(--gold)}
+.pcard.hit{background:var(--in-dim);border-color:var(--in)}
+.pcard.miss{background:rgba(255,107,107,.15);border-color:var(--out)}
+.pcard .g{font-size:10.5px;color:var(--in);height:14px;font-weight:600}
+.combo{font-size:13px;color:var(--muted)}
+.combo b{font-size:30px;color:var(--text);display:block;line-height:1}
+.combo b.hot{color:#ff9f43}
+input[type=range]{accent-color:var(--gold);vertical-align:middle}
+.bpm{display:inline-flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)}
+.bpm b{color:var(--text);min-width:28px;display:inline-block}
+
+/* progress tab */
+.pgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.stat{padding:14px;border-radius:12px;background:var(--panel2);border:1px solid var(--line2)}
+.stat .v{font-size:30px;font-weight:800;line-height:1.1}
+.stat .l{font-size:12px;color:var(--muted)}
+.days{display:flex;gap:4px;align-items:flex-end;height:54px;margin-top:8px}
+.days i{flex:1;background:var(--line2);border-radius:3px;min-height:3px;position:relative}
+.days i.met{background:#ff9f43}
+.days i.today{outline:1px solid var(--gold);outline-offset:1px}
+.badges{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:8px}
+.badge{display:flex;gap:10px;align-items:center;padding:10px;border-radius:12px;background:var(--panel2);border:1px solid var(--line2)}
+.badge .ic{font-size:24px;width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:var(--gold-dim);flex:none}
+.badge b{display:block;font-size:14px}
+.badge small{color:var(--muted);font-size:11.5px;line-height:1.3;display:block}
+.badge.locked{opacity:.45}
+.badge.locked .ic{filter:grayscale(1);background:var(--line)}
+.rec{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid var(--line);font-size:14px}
+.rec span{color:var(--muted)}
 </style>
 </head>
 <body>
@@ -192,6 +246,7 @@ main{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:16px;
 <header class="top">
   <div class="brand">Keywise<span>learn every key</span></div>
   <div class="controls">
+    <div class="game" id="gameBar" title="Your level, daily goal and streak — click for details"></div>
     <span id="midiStatus" class="pill"><i class="dot"></i><span>No piano connected</span></span>
     <select id="midiSelect" hidden></select>
     <button id="midiBtn">Connect piano</button>
@@ -212,11 +267,15 @@ main{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:16px;
       <button data-mode="scales">Scales</button>
       <button data-mode="chords">Chords</button>
       <button data-mode="progressions">Progressions</button>
+      <button data-mode="loop">Loop challenge</button>
       <button data-mode="quiz">Theory quiz</button>
+      <button data-mode="progress">Progress</button>
     </nav>
     <div id="practice"></div>
   </section>
 </main>
+
+<div class="toasts" id="toasts"></div>
 
 <footer class="kb-wrap">
   <div class="kb-bar"><span id="nowPlaying"><span class="m">Play something…</span></span><span class="kb-help">No piano? Computer keys A W S E D F T G Y H U J K play notes · Z / X shift octave</span></div>
@@ -408,7 +467,8 @@ const STORE_KEY = 'keywise.v1';
 let store = { keys: {}, settings: {} };
 try { const s = JSON.parse(localStorage.getItem(STORE_KEY)); if (s && s.keys) store = s; } catch (e) {}
 const save = () => { try { localStorage.setItem(STORE_KEY, JSON.stringify(store)); } catch (e) {} };
-const settings = Object.assign({ nextDir: 'cw', autoNext: true, sevenths: false, showNames: true, showHints: true, quizScope: 'all', minorVariant: 'natural', prog: 0, echo: false, sound: true }, store.settings);
+const settings = Object.assign({ nextDir: 'cw', autoNext: true, sevenths: false, showNames: true, showHints: true, quizScope: 'all', minorVariant: 'natural', prog: 0, echo: false, sound: true,
+  loopBpm: 60, loopBpc: 4, loopSpeedUp: false, metronome: true, loopChangeAfter: 0, loopAutoRestart: true }, store.settings);
 const setSetting = (k, v) => { settings[k] = v; store.settings = settings; save(); };
 const kstat = id => (store.keys[id] ||= { scaleRuns: 0, scaleBest: null, chordRight: 0, chordWrong: 0, progRuns: 0 });
 function mastery(id) {
@@ -427,6 +487,7 @@ const demo = new Set();        // notes lit by playback
 let hintPcs = new Set();       // keys tinted as hints
 let targetMidi = null;         // single exact target
 let targetPcs = new Set();     // pitch classes to pulse
+let targetMidis = new Set();   // exact keys to pulse
 
 function setKey(idx, mode, alt = false) {
   state.idx = mod(idx, 12); state.mode = mode; state.alt = alt;
@@ -492,13 +553,88 @@ function playScale(k) {
   playSequence(asc.map((iv, i) => ({ midis: [base + iv], at: i * 0.28, dur: 0.3 })));
 }
 
+function click(at, accent) {
+  const o = actx.createOscillator(), g = actx.createGain();
+  o.type = 'square'; o.frequency.value = accent ? 1568 : 1046;
+  g.gain.setValueAtTime(0.0001, at); g.gain.exponentialRampToValueAtTime(accent ? 0.32 : 0.16, at + 0.002); g.gain.exponentialRampToValueAtTime(0.0001, at + 0.045);
+  o.connect(g); g.connect(master); o.start(at); o.stop(at + 0.06);
+  return o;
+}
+
+/* ================================================================
+   Game: XP, levels, daily goal, streak, badges
+   ================================================================ */
+const ymd = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+const today = () => ymd(new Date());
+const game = Object.assign({ xp: 0, goal: 50, days: {}, badges: {}, records: {}, keysDone: {}, bestLoops: 0, bestRow: 0, maxBpm: 0, bestPerfect: 0, quizBest: 0, piano: false }, store.game);
+store.game = game;
+function levelInfo(xp) { let L = 1, need = 100, rest = xp; while (rest >= need) { rest -= need; L++; need = 100 + (L - 1) * 50; } return { L, into: rest, need }; }
+function dayStreak() {
+  const d = new Date(); let n = 0;
+  if ((game.days[ymd(d)] || 0) < game.goal) d.setDate(d.getDate() - 1); // today not done yet: streak still alive from yesterday
+  while ((game.days[ymd(d)] || 0) >= game.goal) { n++; d.setDate(d.getDate() - 1); }
+  return n;
+}
+function toast(html, cls = '') {
+  const el = document.createElement('div'); el.className = 'toast ' + cls; el.innerHTML = html;
+  $('#toasts').appendChild(el);
+  setTimeout(() => { el.classList.add('out'); setTimeout(() => el.remove(), 350); }, cls === 'big' ? 3200 : 2200);
+}
+function chime(up = true) {
+  if (!settings.sound || !audio()) return;
+  const t = actx.currentTime + 0.02;
+  (up ? [72, 76, 79, 84] : [45, 44]).forEach((m, i) => { const v = makeVoice(m, up ? 60 : 100, t + i * (up ? 0.08 : 0.12)); v.stop(t + i * 0.1 + (up ? 0.25 : 0.4), 0.3); });
+}
+function addXP(n) {
+  n = Math.round(n); if (n <= 0) return;
+  const t = today(), before = levelInfo(game.xp).L, dayBefore = game.days[t] || 0;
+  game.xp += n; game.days[t] = dayBefore + n; save();
+  renderGameBar();
+  const fly = document.createElement('span'); fly.className = 'xpfly'; fly.textContent = '+' + n + ' XP';
+  $('#gameBar').appendChild(fly); setTimeout(() => fly.remove(), 1000);
+  const L = levelInfo(game.xp).L;
+  if (L > before) { toast(`⭐ Level ${L}!`, 'big'); chime(); }
+  if (dayBefore < game.goal && game.days[t] >= game.goal) { toast(`🔥 Daily goal reached — ${dayStreak()} day streak!`, 'big'); chime(); renderGameBar(); }
+  checkBadges();
+}
+const countKeys = (mode, pred) => Array.from({ length: 12 }, (_, i) => i + '-' + mode).filter(pred).length;
+const BADGES = [
+  { id: 'piano',    ic: '🎹', name: 'Plugged in',        desc: 'Connect a MIDI piano',                       test: () => game.piano },
+  { id: 'prog1',    ic: '🎶', name: 'First progression', desc: 'Finish a chord progression',                 test: () => Object.keys(game.keysDone).length > 0 },
+  { id: 'loop5',    ic: '🔁', name: 'In the pocket',     desc: '5 clean loops in a row',                     test: () => game.bestLoops >= 5 },
+  { id: 'loop20',   ic: '🧠', name: 'Metronome brain',   desc: '20 clean loops in a row',                    test: () => game.bestLoops >= 20 },
+  { id: 'row50',    ic: '⛓️', name: 'Chain of 50',       desc: '50 chords in time without a mistake',        test: () => game.bestRow >= 50 },
+  { id: 'perfect8', ic: '🎯', name: 'Dead on',           desc: '8 “Perfect” hits in a row',                  test: () => game.bestPerfect >= 8 },
+  { id: 'bpm100',   ic: '⚡', name: 'Speed demon',       desc: 'Finish a loop at 100+ BPM',                  test: () => game.maxBpm >= 100 },
+  { id: 'circle',   ic: '🌍', name: 'Around the circle', desc: 'Finish a progression in all 12 major keys',  test: () => countKeys('major', id => game.keysDone[id]) === 12 },
+  { id: 'minor',    ic: '🌙', name: 'Dark side',         desc: 'Finish a progression in all 12 minor keys',  test: () => countKeys('minor', id => game.keysDone[id]) === 12 },
+  { id: 'scales',   ic: '🪜', name: 'Scale climber',     desc: 'Clean scale run in all 12 major keys',       test: () => countKeys('major', id => store.keys[id]?.scaleBest) === 12 },
+  { id: 'chords50', ic: '🧩', name: 'Chord collector',   desc: '50 chords right in the chord drill',         test: () => Object.values(store.keys).reduce((a, s) => a + s.chordRight, 0) >= 50 },
+  { id: 'quiz10',   ic: '🤓', name: 'Theory nerd',       desc: '10 quiz answers right in a row',             test: () => game.quizBest >= 10 },
+  { id: 'streak3',  ic: '🔥', name: 'On fire',           desc: 'Hit your daily goal 3 days in a row',        test: () => dayStreak() >= 3 },
+  { id: 'streak7',  ic: '📅', name: 'Week warrior',      desc: 'Hit your daily goal 7 days in a row',        test: () => dayStreak() >= 7 },
+  { id: 'level5',   ic: '⭐', name: 'Rising star',       desc: 'Reach level 5',                              test: () => levelInfo(game.xp).L >= 5 },
+  { id: 'level10',  ic: '👑', name: 'Key master',        desc: 'Reach level 10',                             test: () => levelInfo(game.xp).L >= 10 },
+];
+function checkBadges() {
+  let any = false;
+  for (const b of BADGES) if (!game.badges[b.id] && b.test()) { game.badges[b.id] = today(); any = true; toast(`🏆 Badge unlocked: <b>${b.name}</b>`, 'big'); }
+  if (any) { save(); chime(); if (curMode === 'progress') modes.progress.enter(); }
+}
+function renderGameBar() {
+  const li = levelInfo(game.xp), d = game.days[today()] || 0, s = dayStreak();
+  $('#gameBar').innerHTML = `<span class="streak${s ? '' : ' off'}" title="Day streak">🔥 ${s}</span><span class="lvl">Lv ${li.L}</span><span class="xpbar" title="${li.into}/${li.need} XP to level ${li.L + 1}"><i style="width:${li.into / li.need * 100}%"></i></span><span class="today${d >= game.goal ? ' met' : ''}">${Math.min(d, game.goal)}/${game.goal} XP today</span>`;
+}
+$('#gameBar').addEventListener('click', () => setMode('progress'));
+
 /* ================================================================
    Input: notes
    ================================================================ */
+const lastOn = new Map();      // midi -> performance.now() of its last attack
 function noteOn(m, vel = 96, src = 'screen') {
   if (held.has(m)) return;
   if (m < kbLo || m > kbHi) { kbLo = 21; kbHi = 108; buildKeyboard(); }
-  held.add(m);
+  held.add(m); lastOn.set(m, performance.now());
   if (src !== 'midi' || settings.echo) synthOn(m, vel);
   modes[curMode].noteOn?.(m);
   onHeldChange();
@@ -543,6 +679,7 @@ function refreshInputs() {
   sel.hidden = ins.length < 2;
   for (const i of ins) i.onmidimessage = (sel.value === 'all' || sel.value === i.id) ? onMidi : null;
   $('#midiBtn').hidden = ins.length > 0;
+  if (ins.length && !game.piano) { game.piano = true; save(); checkBadges(); }
   if (ins.length) setMidiStatus((sel.value === 'all' ? ins.map(i => i.name).join(', ') : ins.find(i => i.id === sel.value).name), 'ok');
   else setMidiStatus('No piano found — plug it in via USB', 'warn');
 }
@@ -559,6 +696,7 @@ const downKeys = new Map();
 addEventListener('keydown', e => {
   if (e.metaKey || e.ctrlKey || e.altKey || e.repeat || /INPUT|SELECT|TEXTAREA/.test(e.target.tagName)) return;
   const k = e.key.toLowerCase();
+  if (k === ' ' && curMode === 'loop') { e.preventDefault(); Loop.toggle(); return; }
   if (k === 'z') { kbOct = Math.max(24, kbOct - 12); return; }
   if (k === 'x') { kbOct = Math.min(96, kbOct + 12); return; }
   if (k in KEYMAP && !downKeys.has(k)) { const m = kbOct + KEYMAP[k]; downKeys.set(k, m); noteOn(m, 96, 'computer'); e.preventDefault(); }
@@ -613,7 +751,7 @@ function renderKeyboardState() {
     el.classList.toggle('out', on && !ik.has(pc));
     el.classList.toggle('demo', demo.has(mm) && !on);
     el.classList.toggle('hint', hintPcs.has(pc) && !on);
-    el.classList.toggle('target', !on && (targetMidi === mm || targetPcs.has(pc)));
+    el.classList.toggle('target', !on && (targetMidi === mm || targetMidis.has(mm) || targetPcs.has(pc)));
   }
 }
 function flashBad(m) { const el = keyEls[m]; if (!el) return; el.classList.remove('flash-bad'); void el.offsetWidth; el.classList.add('flash-bad'); }
@@ -790,7 +928,7 @@ $('#info').addEventListener('change', e => { if (e.target.id === 'sev') { setSet
    Practice modes
    ================================================================ */
 const P = () => $('#practice');
-function clearTargets() { hintPcs = new Set(); targetMidi = null; targetPcs = new Set(); renderKeyboardState(); }
+function clearTargets() { hintPcs = new Set(); targetMidi = null; targetPcs = new Set(); targetMidis = new Set(); renderKeyboardState(); }
 const nextKeyControls = () => `
   <label class="toggle"><input type="checkbox" data-set="autoNext" ${settings.autoNext ? 'checked' : ''}> When done, move to</label>
   <select data-set="nextDir">
@@ -911,7 +1049,7 @@ const Scales = {
     const ms = performance.now() - this.t0, st = kstat(key.id);
     const best = !st.scaleBest || ms < st.scaleBest;
     st.scaleRuns++; if (best && this.mistakes === 0) st.scaleBest = Math.round(ms);
-    save();
+    save(); addXP(this.mistakes === 0 ? 20 : 10);
     $('#scTime').textContent = (ms / 1000).toFixed(1) + 's';
     const fb = $('#scFb'); fb.className = 'feedback ok';
     fb.textContent = `${this.mistakes === 0 ? 'Clean run!' : 'Done!'} ${(ms / 1000).toFixed(1)}s, ${this.mistakes} mistake${this.mistakes === 1 ? '' : 's'}${best && this.mistakes === 0 ? ' — new best' : ''}.` + (settings.autoNext && settings.nextDir !== 'stay' ? ' Next key coming…' : '');
@@ -966,6 +1104,7 @@ const Chords = {
         const ms = performance.now() - this.t0, st = kstat(key.id);
         if (!this.bad) { this.right++; this.streak++; st.chordRight++; this.times.push(ms); if (this.times.length > 20) this.times.shift(); }
         save();
+        if (!this.bad) addXP(2 + Math.min(2, Math.floor(this.streak / 5)));
         const fb = $('#chFb'); fb.className = 'feedback ok'; fb.textContent = `✓ ${t.name} — ${(ms / 1000).toFixed(1)}s`;
         clearTargets(); renderCircle();
         scheduleNext(() => this.newTarget(), 700);
@@ -1041,7 +1180,7 @@ const Progs = {
       this.step++; $('#pgFb').textContent = '';
       if (this.step === this.seq.length) {
         this.done = true;
-        const ms = performance.now() - this.t0, st = kstat(key.id); st.progRuns++; save();
+        const ms = performance.now() - this.t0, st = kstat(key.id); st.progRuns++; game.keysDone[key.id] = 1; save(); addXP(10);
         $('#pgTime').textContent = (ms / 1000).toFixed(1) + 's';
         const fb = $('#pgFb'); fb.className = 'feedback ok';
         const nk = settings.nextDir === 'cw' ? makeKey(key.idx + 1, key.mode) : settings.nextDir === 'ccw' ? makeKey(key.idx - 1, key.mode) : null;
@@ -1117,7 +1256,7 @@ const Quiz = {
   },
   answer(ok, pc) {
     this.answered = true; this.total++;
-    if (ok) { this.right++; this.streak++; } else this.streak = 0;
+    if (ok) { this.right++; this.streak++; game.quizBest = Math.max(game.quizBest, this.streak); addXP(3); } else this.streak = 0;
     hintPcs = new Set(this.q.ans); renderKeyboardState();
     this.render();
     $('#qRes').innerHTML = `<div class="result${ok ? '' : ' bad'}">${ok ? '✓ Correct. ' : `✗ ${pc != null ? `You played ${pretty(spellPc(pc, this.q.k))}. ` : ''}`}${this.q.explain}</div>`;
@@ -1125,9 +1264,277 @@ const Quiz = {
   },
 };
 
-const modes = { explore: Explore, scales: Scales, chords: Chords, progressions: Progs, quiz: Quiz };
+/* ---------- Loop challenge: same progression, in time, until you slip ---------- */
+const Loop = {
+  running: false, phase: 'idle', slots: [], clicks: [], count: [],
+  enter() { this.halt(); this.phase = 'idle'; this.lastRun = null; this.render(); },
+  leave() { this.halt(); this.phase = 'idle'; clearTargets(); },
+  keyChanged() { if (this.transposing) return; this.halt(); this.phase = 'idle'; clearTargets(); this.render(); },
+  settingChanged() { if (!this.running) this.render(); },
+  progNow() { const list = Progs.list(); return list[Math.min(settings.prog, list.length - 1)]; },
+  recIdNow() { return `${key.mode}|${this.progNow().name}|${settings.loopBpc}|${settings.sevenths ? 7 : 3}`; },
+  recLabel() { const b = +settings.loopBpc; return `${this.progNow().name} <span>(${key.mode}, ${b} beat${b > 1 ? 's' : ''}/chord${settings.sevenths ? ', 7ths' : ''})</span>`; },
+  win(s) { return Math.min(s.spb * 0.5, 450); },          // how early/late a chord may land
+  target() { return this.slots.find(s => !s.hit); },
+  halt() {
+    this.running = false; clearInterval(this.timer); clearTimeout(this.restartT);
+    if (actx) this.clicks.forEach(o => { try { o.stop(); } catch (e) {} });
+    this.clicks = [];
+  },
+  start() {
+    this.halt(); clearTargets(); audio();
+    Object.assign(this, { running: true, phase: 'count', bpm: +settings.loopBpm, topBpm: 0, loops: 0, row: 0, perfectRow: 0, loopsInKey: 0,
+      slots: [], recBeaten: false, recId: this.recIdNow(), recLbl: this.recLabel(), bigKey: null, hintKey: null, cardsLoop: null });
+    const spb = 60000 / this.bpm, t0 = performance.now() + 350;
+    this.count = [0, 1, 2, 3].map(k => ({ t: t0 + k * spb, sched: false, accent: k === 0, n: 4 - k }));
+    this.addLoop(t0 + 4 * spb);
+    this.render();
+    this.timer = setInterval(() => this.tick(), 15);
+  },
+  addLoop(start) {
+    const ch = Progs.chords(), spb = 60000 / this.bpm, bpc = +settings.loopBpc;
+    const loop = this.slots.length ? this.slots.at(-1).loop + 1 : 0;
+    ch.forEach((c, i) => {
+      const s = start + i * bpc * spb;
+      this.slots.push({ loop, i, n: ch.length, chord: c, k: { idx: key.idx, mode: key.mode, alt: key.alt }, keyId: key.id, keyLabel: key.label,
+        bpm: this.bpm, spb, start: s, end: s + bpc * spb, hit: false, gen: false,
+        beats: Array.from({ length: bpc }, (_, j) => ({ t: s + j * spb, sched: false, accent: j === 0 })) });
+    });
+    this.loopsInKey++;
+  },
+  nextLoop(last) {
+    if (settings.loopSpeedUp) this.bpm = Math.min(200, this.bpm + 4);
+    const N = +settings.loopChangeAfter;
+    if (N > 0 && this.loopsInKey >= N) {
+      this.transposing = true; nextKey(settings.nextDir === 'stay' ? 'cw' : settings.nextDir); this.transposing = false;
+      this.loopsInKey = 0; toast(`Next up: <b>${key.label}</b>`);
+    }
+    this.addLoop(last.end);
+  },
+  tick() {
+    if (!this.running) return;
+    const now = performance.now();
+    const sched = b => {
+      if (b.sched || b.t > now + 120) return;
+      b.sched = true;
+      if (settings.metronome && actx && b.t > now - 40) this.clicks.push(click(actx.currentTime + Math.max(0, (b.t - now) / 1000), b.accent));
+    };
+    this.count.forEach(sched);
+    for (const s of this.slots) if (s.start < now + 1000) s.beats.forEach(sched);
+    if (this.clicks.length > 40) this.clicks.splice(0, 20);
+    if (this.phase === 'count') {
+      const first = this.slots[0];
+      if (now >= first.start - this.win(first)) this.phase = 'play';
+      const c = this.count.filter(b => b.t <= now).at(-1);
+      this.setBig(c ? String(c.n) : 'Ready…', 'count', `first chord: ${first.chord.roman}${settings.showNames ? ' · ' + first.chord.name : ''}`);
+    }
+    const last = this.slots.at(-1);
+    if (now >= last.start && !last.gen) { last.gen = true; this.nextLoop(last); }
+    if (this.phase === 'play') {
+      this.tryHit(now);
+      const t = this.target();
+      if (t && now > t.start + this.win(t)) return this.fail('missed', t);
+    }
+    this.drawBeat(now);
+    while (this.slots.length > 2 && this.slots[0].hit && this.slots[0].end < now - 4000 && this.slots[0].loop < this.slots.at(-1).loop - 1) this.slots.shift();
+  },
+  tryHit(now) {
+    const t = this.target(); if (!t) return;
+    const w = this.win(t); if (now < t.start - w) return;
+    const hp = [...heldPcs()];
+    if (hp.length < t.chord.pcs.length || !sameSet(hp, t.chord.pcs)) return;
+    const attack = Math.max(...[...held].map(m => lastOn.get(m) || 0));
+    if (attack < t.start - w) return;                     // a chord held over from before must be struck again
+    this.hit(t, attack - t.start);
+  },
+  hit(s, off) {
+    s.hit = true;
+    const a = Math.abs(off);
+    s.grade = a <= 90 ? 'Perfect' : a <= 180 ? 'Great' : 'Good';
+    this.row++; this.perfectRow = s.grade === 'Perfect' ? this.perfectRow + 1 : 0;
+    game.bestPerfect = Math.max(game.bestPerfect, this.perfectRow);
+    game.bestRow = Math.max(game.bestRow, this.row);
+    this.setBig(s.grade, 'ok', off < -90 ? 'a little early' : off > 90 ? 'a little late' : `${s.chord.roman} · ${s.chord.name}`);
+    const rec = game.records[this.recId];
+    if (rec && !this.recBeaten && this.row > rec.row) { this.recBeaten = true; toast('🏅 New record — keep going!', 'big'); chime(); }
+    if (s.i === s.n - 1) {
+      this.loops++; this.topBpm = Math.max(this.topBpm, s.bpm); game.keysDone[s.keyId] = 1;
+      game.bestLoops = Math.max(game.bestLoops, this.loops); game.maxBpm = Math.max(game.maxBpm, s.bpm);
+      addXP(5 + Math.max(0, Math.floor((s.bpm - 60) / 20)) * 2 + Math.min(5, this.loops - 1));
+    } else save();
+    this.lastBeatKey = null;
+    this.updateScore();
+  },
+  heldChanged() {
+    if (this.phase === 'idle' || this.phase === 'fail') {        // playing the first chord starts a run
+      const first = Progs.chords()[0], hp = [...heldPcs()];
+      if (hp.length >= first.pcs.length && sameSet(hp, first.pcs)) this.start();
+      return;
+    }
+    if (this.phase !== 'play') return;
+    this.tryHit(performance.now());
+    const t = this.target(); if (!t) return;
+    const i = this.slots.indexOf(t), prev = i > 0 ? this.slots[i - 1] : null;
+    const allowed = new Set([...t.chord.pcs, ...(prev ? prev.chord.pcs : [])]);
+    const hp = [...heldPcs()];
+    if (hp.length >= 3 && hp.some(p => !allowed.has(p))) this.fail('wrong', t);
+  },
+  fail(reason, s) {
+    const hp = [...heldPcs()], c = s.chord;
+    if (reason === 'missed' && hp.length >= c.pcs.length && sameSet(hp, c.pcs)) reason = 'early';
+    const played = identify([...held], key);
+    this.halt(); this.phase = 'fail'; s.miss = true; this.failLoop = s.loop;
+    if (s.keyId !== key.id) { this.transposing = true; setKey(s.k.idx, s.k.mode, s.k.alt); this.transposing = false; }
+    const why = reason === 'wrong' ? `You played ${played?.name || 'other notes'}. ${c.roman} is ${c.name} (${c.noteNames})`
+      : reason === 'early' ? `Too early on ${c.roman}. Land it on the click`
+      : `Missed ${c.roman} (${c.name}). It was due on the click`;
+    const rec = game.records[this.recId];
+    const isRec = this.row > 0 && (!rec || this.row > rec.row);
+    if (isRec) game.records[this.recId] = { row: this.row, loops: this.loops, bpm: this.topBpm, label: this.recLbl, date: today() };
+    save();
+    if (isRec && this.row >= 4) addXP(15);
+    this.lastRun = { why, row: this.row, loops: this.loops, isRec, prev: rec ? rec.row : 0 };
+    hintPcs = new Set(c.pcs); targetPcs = new Set(); targetMidis = new Set(); renderKeyboardState();
+    chime(false);
+    this.render();
+    if (settings.loopAutoRestart) this.restartT = setTimeout(() => { if (curMode === 'loop' && this.phase === 'fail') this.start(); }, 3200);
+  },
+  setBig(t, cls, sub = '') {
+    const k = t + '|' + cls + '|' + sub; if (k === this.bigKey) return; this.bigKey = k;
+    const el = $('#lpBig'); if (el) { el.className = 'lp-big ' + cls; el.innerHTML = `${t}<small>${sub}</small>`; }
+  },
+  updateScore() {
+    const r = $('#lpRow'); if (!r) return;
+    r.textContent = this.row; r.classList.toggle('hot', this.row >= 8);
+    $('#lpLoops').textContent = this.loops; $('#lpBpm').textContent = this.bpm;
+  },
+  renderCards(loop) {
+    this.cardsLoop = loop; this.lastBeatKey = null;
+    const ss = this.slots.filter(s => s.loop === loop);
+    const chords = ss.length ? ss.map(s => s.chord) : Progs.chords();
+    const bpc = ss[0]?.beats.length || +settings.loopBpc;
+    $('#lpCards').innerHTML = chords.map(c => `<div class="pcard"><div class="r">${c.roman}</div><div class="n" style="visibility:${settings.showNames ? 'visible' : 'hidden'}">${c.name}</div><div class="beats">${'<i></i>'.repeat(bpc)}</div><div class="g"></div></div>`).join('');
+    $('#lpKey').textContent = ss[0]?.keyLabel || key.label;
+  },
+  paint(cur, beat) {
+    document.querySelectorAll('#lpCards .pcard').forEach((el, i) => {
+      const s = this.slots.find(x => x.loop === this.cardsLoop && x.i === i);
+      el.classList.toggle('cur', !!cur && cur.i === i);
+      el.classList.toggle('hit', !!s?.hit); el.classList.toggle('miss', !!s?.miss);
+      el.querySelector('.g').textContent = s?.grade || '';
+      el.querySelectorAll('.beats i').forEach((d, k) => d.classList.toggle('on', !!cur && cur.i === i && k <= beat));
+    });
+  },
+  drawBeat(now) {
+    const cur = this.slots.find(s => now >= s.start && now < s.end);
+    const loop = cur ? cur.loop : (this.cardsLoop ?? this.slots[0].loop);
+    if (loop !== this.cardsLoop) this.renderCards(loop);
+    const beat = cur ? Math.floor((now - cur.start) / cur.spb) : -1;
+    const bk = cur ? cur.loop + ':' + cur.i + ':' + beat : 'none';
+    if (bk !== this.lastBeatKey) { this.lastBeatKey = bk; this.paint(cur, beat); }
+    const t = this.target(), hk = settings.showHints && t ? t.chord.pcs.join() : '';
+    if (hk !== this.hintKey) {   // show one close voicing around middle C rather than every octave
+      this.hintKey = hk; targetMidis = new Set();
+      if (hk) { let m = 59; for (const pc of t.chord.pcs) { m++; while (m % 12 !== pc) m++; targetMidis.add(m); } }
+      renderKeyboardState();
+    }
+  },
+  render() {
+    const list = Progs.list(), sel = Math.min(settings.prog, list.length - 1);
+    const rec = game.records[this.running ? this.recId : this.recIdNow()];
+    const run = this.running, lr = this.lastRun, failed = this.phase === 'fail';
+    const b = +settings.loopBpc;
+    P().innerHTML = `
+      <div class="row"><div><div class="prompt">Play the progression in time, round and round. One mistake and you start over.</div>
+        <div class="big" id="lpKey" style="font-size:34px">${key.label}</div></div>
+        <div class="spacer"></div>
+        <div class="score">
+          <span class="combo"><b id="lpRow">${run ? this.row : 0}</b>chords in a row</span>
+          <span><b id="lpLoops">${run ? this.loops : 0}</b>loops</span>
+          <span><b id="lpBpm">${run ? this.bpm : settings.loopBpm}</b>BPM</span>
+          <span><b>${rec ? rec.row : '—'}</b>record${rec ? ` · ${rec.loops} loops` : ''}</span>
+        </div></div>
+      <div class="lp-stage"><div class="lp-big${failed ? ' bad' : ''}" id="lpBig">${failed ? `Oops!<small>${lr.why}</small>` : run ? '' : `Ready?<small>Press Start (or space), or just play the ${Progs.chords()[0].roman} chord</small>`}</div></div>
+      ${failed ? `<div class="result bad">You kept it going for <b>${lr.row} chord${lr.row === 1 ? '' : 's'}</b> (${lr.loops} full loop${lr.loops === 1 ? '' : 's'}). ${lr.isRec ? `<b>🏅 New record!</b>${lr.prev ? ` Old record: ${lr.prev}.` : ''}` : rec ? `Record: ${rec.row}.` : ''} ${settings.loopAutoRestart ? 'Going again in a moment…' : ''}</div>` : ''}
+      <div class="progcards" id="lpCards"></div>
+      <div class="row">
+        <button class="primary" id="lpGo">${run ? '■ Stop' : '▶ Start'}</button>
+        <select data-set="prog" ${run ? 'disabled' : ''}>${list.map((p, i) => `<option value="${i}" ${i === sel ? 'selected' : ''}>${p.name}</option>`).join('')}</select>
+        <span class="bpm">Tempo <input type="range" min="40" max="160" step="2" value="${settings.loopBpm}" id="lpTempo" ${run ? 'disabled' : ''}><b id="lpTempoV">${settings.loopBpm}</b> BPM</span>
+        <select data-set="loopBpc" ${run ? 'disabled' : ''}>${[4, 2, 1].map(n => `<option value="${n}" ${b === n ? 'selected' : ''}>${n} beat${n > 1 ? 's' : ''} per chord</option>`).join('')}</select>
+      </div>
+      <div class="row">
+        <label class="toggle"><input type="checkbox" data-set="metronome" ${settings.metronome ? 'checked' : ''}> Metronome</label>
+        <label class="toggle"><input type="checkbox" data-set="loopSpeedUp" ${settings.loopSpeedUp ? 'checked' : ''}> Speed up 4 BPM each loop</label>
+        <label class="toggle"><input type="checkbox" data-set="showHints" ${settings.showHints ? 'checked' : ''}> Show next chord on keyboard</label>
+        <label class="toggle"><input type="checkbox" data-set="showNames" ${settings.showNames ? 'checked' : ''}> Chord names</label>
+        <label class="toggle"><input type="checkbox" data-set="sevenths" ${settings.sevenths ? 'checked' : ''} ${run ? 'disabled' : ''}> 7ths</label>
+        <label class="toggle"><input type="checkbox" data-set="loopAutoRestart" ${settings.loopAutoRestart ? 'checked' : ''}> Restart automatically</label>
+      </div>
+      <div class="row">
+        <span class="muted small">Change key every</span>
+        <select data-set="loopChangeAfter">${[[0, 'never'], [1, 'loop'], [2, '2 loops'], [4, '4 loops'], [8, '8 loops']].map(([v, l]) => `<option value="${v}" ${+settings.loopChangeAfter === v ? 'selected' : ''}>${l}</option>`).join('')}</select>
+        <select data-set="nextDir">${[['cw', 'going ↻ (up a 5th)'], ['ccw', 'going ↺ (up a 4th)'], ['random', 'to a random key']].map(([v, l]) => `<option value="${v}" ${settings.nextDir === v ? 'selected' : ''}>${l}</option>`).join('')}</select>
+      </div>
+      <div class="muted small" style="margin-top:10px">Land each chord on the first (higher) click of its bar. Within 90 ms is <b>Perfect</b>, within 180 ms is <b>Great</b>, and you can be up to half a beat early or late. A chord held over from before has to be struck again. Turn on “Change key” to see how far around the circle you get without a mistake.</div>`;
+    $('#lpGo').onclick = () => this.toggle();
+    $('#lpTempo').oninput = e => { $('#lpTempoV').textContent = e.target.value; };
+    $('#lpTempo').onchange = e => setSetting('loopBpm', +e.target.value);
+    if (failed) { this.renderCards(this.failLoop); this.paint(null, -1); }
+    else this.renderCards(run ? 0 : -1);
+  },
+  toggle() {
+    if (this.running || this.phase === 'fail') { this.halt(); this.phase = 'idle'; clearTargets(); this.render(); }
+    else this.start();
+  },
+};
+
+/* ---------- Progress ---------- */
+const ProgressTab = {
+  enter() { clearTargets(); this.render(); },
+  render() {
+    const li = levelInfo(game.xp), s = dayStreak(), t = today();
+    const days = [], d = new Date(); d.setDate(d.getDate() - 13);
+    for (let i = 0; i < 14; i++) { const k = ymd(d); days.push({ k, v: game.days[k] || 0 }); d.setDate(d.getDate() + 1); }
+    const max = Math.max(game.goal, ...days.map(x => x.v));
+    const recs = Object.values(game.records).sort((a, b) => b.row - a.row).slice(0, 10);
+    const keysTouched = Object.keys(game.keysDone).length;
+    P().innerHTML = `
+      <div class="pgrid">
+        <div class="stat"><div class="l">Level</div><div class="v">⭐ ${li.L}</div>
+          <div class="xpbar" style="width:100%;margin:8px 0 6px"><i style="width:${li.into / li.need * 100}%"></i></div>
+          <div class="l">${li.into} / ${li.need} XP to level ${li.L + 1} · ${game.xp} XP in total</div></div>
+        <div class="stat"><div class="l">Day streak</div><div class="v">🔥 ${s} day${s === 1 ? '' : 's'}</div>
+          <div class="l" style="margin-top:6px">Daily goal <select id="goalSel">${[[20, 'Casual · 20 XP'], [50, 'Regular · 50 XP'], [100, 'Serious · 100 XP'], [200, 'Intense · 200 XP']].map(([v, l]) => `<option value="${v}" ${game.goal === v ? 'selected' : ''}>${l}</option>`).join('')}</select></div></div>
+        <div class="stat"><div class="l">Last 14 days</div><div class="days">${days.map(x => `<i class="${x.v >= game.goal ? 'met' : ''}${x.k === t ? ' today' : ''}" style="height:${Math.max(4, x.v / max * 100)}%" title="${x.k}: ${x.v} XP"></i>`).join('')}</div></div>
+        <div class="stat"><div class="l">Best loop run</div><div class="v">${game.bestRow}</div>
+          <div class="l">chords in a row · ${game.bestLoops} loops · top ${game.maxBpm || '—'} BPM · progressions done in ${keysTouched} of 24 keys</div></div>
+      </div>
+      <h3>Badges · ${Object.keys(game.badges).length} / ${BADGES.length}</h3>
+      <div class="badges">${BADGES.map(b => `<div class="badge${game.badges[b.id] ? '' : ' locked'}"><span class="ic">${b.ic}</span><div><b>${b.name}</b><small>${b.desc}</small></div></div>`).join('')}</div>
+      <h3>Loop challenge records</h3>
+      ${recs.length ? recs.map(r => `<div class="rec"><div>${r.label}</div><span><b style="color:var(--text)">${r.row}</b> chords · ${r.loops} loops${r.bpm ? ' · ' + r.bpm + ' BPM' : ''}</span></div>`).join('') : '<div class="muted">No records yet. Try the Loop challenge.</div>'}
+      <h3>How to earn XP</h3>
+      <ul class="tips">
+        <li><b>Loop challenge:</b> 5+ XP per clean loop, more at faster tempos and longer runs, plus 15 for a new record</li>
+        <li><b>Scales:</b> 20 XP for a clean run (10 with mistakes) · <b>Progressions:</b> 10 XP</li>
+        <li><b>Chords:</b> 2–4 XP per chord, more on a streak · <b>Quiz:</b> 3 XP per right answer</li>
+        <li>Hit your daily goal every day to keep the 🔥 streak alive.</li>
+      </ul>
+      <div class="row" style="margin-top:16px"><button class="ghost small" id="resetAll">Reset all progress</button></div>`;
+    $('#goalSel').onchange = e => { game.goal = +e.target.value; save(); renderGameBar(); this.render(); };
+    $('#resetAll').onclick = () => {
+      if (!confirm('Delete all XP, streaks, badges, records and key progress? This cannot be undone.')) return;
+      try { localStorage.removeItem(STORE_KEY); } catch (e) {}
+      location.reload();
+    };
+  },
+};
+
+const modes = { explore: Explore, scales: Scales, chords: Chords, progressions: Progs, loop: Loop, quiz: Quiz, progress: ProgressTab };
 let curMode = 'explore';
 function setMode(m) {
+  modes[curMode]?.leave?.();
   clearTimeout(autoTimer); clearInterval(Scales.tick); clearDemo();
   curMode = m;
   document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.mode === m));
@@ -1143,6 +1550,7 @@ $('#midiSelect').onchange = refreshInputs;
 $('#soundOn').checked = settings.sound; $('#echoMidi').checked = settings.echo;
 $('#soundOn').onchange = e => setSetting('sound', e.target.checked);
 $('#echoMidi').onchange = e => { setSetting('echo', e.target.checked); if (e.target.checked) audio(); };
+renderGameBar();
 buildKeyboard();
 setKey(0, 'major');
 setMode('explore');
