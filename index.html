@@ -254,6 +254,93 @@ input[type=range]{accent-color:var(--gold);vertical-align:middle}
 .picker button{padding:5px 10px;font-weight:650}
 .picker button.on{background:var(--gold);color:#1a1405;border-color:var(--gold)}
 .pcard .inv{font-size:10.5px;color:var(--muted)}
+
+/* ===== compact app layout ===== */
+:root{--kb-h:128px}
+body{padding-bottom:calc(var(--kb-h) + 40px + env(safe-area-inset-bottom))}
+.top{padding:8px 16px}
+.brand{font-size:18px}
+.pill,.game{padding:4px 10px}
+main{grid-template-columns:clamp(330px,31vw,450px) minmax(0,1fr);gap:12px;padding:12px 16px;max-width:none}
+.side{display:flex;flex-direction:column;gap:12px;min-width:0}
+.card{padding:14px}
+.circle-card{padding:6px;justify-content:center}
+.practice-card{grid-column:auto}
+#circle .lbl-maj{font-size:21px} #circle .lbl-min{font-size:15.5px} #circle .nd text{font-size:12.5px} #circle .rn{font-size:12px}
+.key-head h2{font-size:21px}
+.mode-switch button{padding:4px 10px;font-size:13px}
+.sigrow{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.sigline{font-size:12.5px;margin-top:2px}
+.staff{margin:0;flex:none}
+h3{margin:10px 0 6px;font-size:11px}
+.chips{gap:4px;flex-wrap:nowrap}
+.chip{min-width:0;flex:1;padding:3px 2px;border-radius:8px}
+.chip b{font-size:14px}
+.chords{grid-template-columns:repeat(auto-fill,minmax(50px,1fr));gap:4px}
+.chord{padding:5px 2px;border-radius:8px}
+.chord .r{font-size:11px} .chord .n{font-size:14px} .chord .t{display:none}
+.nbrs{margin-top:10px;gap:4px}
+.nbrs button{font-size:12px;padding:3px 8px}
+.tabs{margin:-6px -6px 12px}
+.tabs button{padding:7px 11px;font-size:14px}
+.big{font-size:32px}
+.big .sub{font-size:17px}
+.lp-big{font-size:36px}
+.icards,.progcards{margin:10px 0}
+.icard{min-width:132px;padding:9px}
+.pcard{min-width:72px;padding:9px 8px}
+.seq{margin:8px 0}
+.row + .row{margin-top:8px}
+.kb-bar{height:30px;padding:4px 16px}
+@media (min-width:1000px){
+  html,body{height:100%}
+  body{display:flex;flex-direction:column;height:100dvh;overflow:hidden;padding-bottom:0}
+  .top{flex:none}
+  main{flex:1;min-height:0;width:100%;grid-template-rows:minmax(0,1fr)}
+  .side{min-height:0;overflow-y:auto}
+  .circle-card{flex:1 1 0;min-height:240px}
+  #circle{width:100%;height:100%;max-width:none}
+  .info-card{flex:none}
+  .practice-card{overflow-y:auto;min-height:0}
+  .kb-wrap{position:static;flex:none}
+}
+.help{margin-top:10px;font-size:13px;color:var(--muted)}
+.help summary{cursor:pointer;color:var(--faint);width:max-content;user-select:none}
+.help summary:hover{color:var(--text)}
+.help[open] summary{margin-bottom:4px}
+@media (min-width:1000px) and (max-height:820px){
+  :root{--kb-h:104px}
+  .kb-bar{height:26px}
+  .top{padding:6px 16px}
+  main{padding:10px 16px;gap:10px}
+  .card{padding:11px}
+  .circle-card{min-height:200px;padding:4px}
+  .info-card .staff{display:none}
+  .chip small{display:none}
+  h3{margin:7px 0 4px}
+  .big{font-size:27px} .big .sub{font-size:15px}
+  .lp-big{font-size:30px}
+  .lp-stage{margin:2px 0}
+  .score b{font-size:16px} .combo b{font-size:24px}
+  .icard{padding:7px;min-width:122px}
+  .icard .n{font-size:16px}
+  .mkb{width:120px;margin:5px auto 3px}
+  .pcard{padding:7px 8px}
+  .pcard .r{font-size:17px}
+  .tabs{margin-bottom:8px}
+  .tabs button{padding:6px 10px}
+}
+@media (max-width:600px){
+  .brand span{display:none}
+  .top{gap:6px}
+  .controls{gap:6px}
+  .toggle{font-size:12px}
+}
+@media (max-width:999px){
+  main{grid-template-columns:minmax(0,1fr)}
+  .practice-card{order:-1}
+  #circle{max-width:420px;margin:0 auto}
+}
 </style>
 </head>
 <body>
@@ -271,11 +358,12 @@ input[type=range]{accent-color:var(--gold);vertical-align:middle}
 </header>
 
 <main>
-  <section class="card circle-card">
-    <svg id="circle" viewBox="-300 -300 600 600" aria-label="Circle of fifths"></svg>
-    <div class="circle-hint">Outer ring: major keys · inner ring: minor keys · tap a key to select it (tap F♯/G♭ again to flip spelling)</div>
-  </section>
-  <section class="card info-card" id="info"></section>
+  <aside class="side">
+    <section class="card circle-card" title="Outer ring: major keys · inner ring: minor keys · tap a key to select it (tap F♯/G♭ again to flip spelling)">
+      <svg id="circle" viewBox="-300 -300 600 600" aria-label="Circle of fifths"></svg>
+    </section>
+    <section class="card info-card" id="info"></section>
+  </aside>
   <section class="card practice-card">
     <nav class="tabs" id="tabs">
       <button data-mode="explore" class="on">Explore</button>
@@ -895,7 +983,7 @@ function staffSvg(k) {
   const y = s => 47 - s * 4;
   const acc = k.sharps.length ? k.sharps.map(n => [SH[n[0]], '♯']) : k.flats.map(n => [FL[n[0]], '♭']);
   const w = Math.max(120, 44 + acc.length * 11 + 20);
-  let s = `<svg class="staff" viewBox="0 0 ${w} 64" width="${w * 1.3}">`;
+  let s = `<svg class="staff" viewBox="0 0 ${w} 64" width="${w * 0.85}">`;
   for (let i = 0; i < 5; i++) s += `<line x1="0" x2="${w}" y1="${15 + i * 8}" y2="${15 + i * 8}"/>`;
   s += `<text x="2" y="51" font-size="46">𝄞</text>`;
   acc.forEach(([st, g], i) => { s += `<text x="${36 + i * 11}" y="${y(st) + (g === '♯' ? 5 : 3)}" font-size="${g === '♯' ? 17 : 19}">${g}</text>`; });
@@ -910,28 +998,24 @@ function renderInfo() {
   const chords = settings.sevenths ? k.chords7 : k.chords;
   const extra = k.mode === 'minor' ? (settings.sevenths ? k.harmV7 : k.harmV) : null;
   const dn = k.mode === 'major' ? DEG_MAJ : DEG_MIN;
-  const acc = st.chordRight + st.chordWrong;
+  const lt = k.mode === 'minor' ? pretty(spellScale(k.tonic, SCALES.harmonic)[6].name) : '';
   $('#info').innerHTML = `
     <div class="key-head"><h2>${k.label}</h2>
       <div class="mode-switch"><button data-m="major" class="${k.mode === 'major' ? 'on' : ''}">Major</button><button data-m="minor" class="${k.mode === 'minor' ? 'on' : ''}">Minor</button></div></div>
-    <div class="sigline"><b>${sigText(k)}</b>${k.sigType ? ' · ' + sigList(k) : ''} · relative ${k.mode === 'major' ? 'minor' : 'major'}: <b>${rel.label}</b></div>
-    ${staffSvg(k)}
-    <h3>Scale <button class="ghost small" id="hearScale" style="padding:2px 8px;margin-left:6px">▶ hear</button></h3>
+    <div class="sigrow"><div class="sigline"><b>${sigText(k)}</b>${k.sigType ? ' · ' + sigList(k) : ''}</div>${staffSvg(k)}</div>
+    <h3>Scale <button class="ghost small" id="hearScale" style="padding:1px 7px;margin-left:4px">▶ hear</button></h3>
     <div class="chips">${k.scale.map((n, i) => `<div class="chip${i === 0 ? ' ton' : ''}" data-pc="${n.pc}" title="${dn[i]}"><small>${i + 1}</small><b>${pretty(n.name)}</b></div>`).join('')}</div>
-    <h3>Chords in this key <label class="toggle" style="margin-left:8px;text-transform:none;letter-spacing:0"><input type="checkbox" id="sev" ${settings.sevenths ? 'checked' : ''}> 7ths</label></h3>
-    <div class="chords">${chords.map(c => chordCard(c)).join('')}${extra ? chordCard(extra, true) : ''}</div>
-    ${k.mode === 'minor' ? `<div class="muted small" style="margin-top:6px">Dashed: in minor, the V chord is usually made major by raising the 7th (harmonic minor) — that's the ${pretty(spellScale(k.tonic, SCALES.harmonic)[6].name)}.</div>` : ''}
-    <h3>Neighbours</h3>
+    <h3>Chords <label class="toggle" style="margin-left:6px;text-transform:none;letter-spacing:0"><input type="checkbox" id="sev" ${settings.sevenths ? 'checked' : ''}> 7ths</label></h3>
+    <div class="chords">${chords.map(c => chordCard(c)).join('')}${extra ? chordCard(extra, true, `In minor, V is usually made major by raising the 7th (${lt}): harmonic minor`) : ''}</div>
     <div class="nbrs">
-      <button data-go="${rel.idx},${rel.mode}"><span>Relative</span>${rel.label}</button>
-      <button data-go="${dom.idx},${dom.mode}"><span>Dominant ↻</span>${dom.label}</button>
-      <button data-go="${sub.idx},${sub.mode}"><span>Subdominant ↺</span>${sub.label}</button>
-      <button data-go="${par.idx},${par.mode}"><span>Parallel</span>${par.label}</button>
-    </div>
-    <div class="stats">Your progress in ${k.label}: scale runs <b>${st.scaleRuns}</b>${st.scaleBest ? ` (best <b>${(st.scaleBest / 1000).toFixed(1)}s</b>)` : ''} · chords <b>${st.chordRight}</b>${acc ? ` (${Math.round(st.chordRight / acc * 100)}% right)` : ''} · progressions <b>${st.progRuns}</b></div>`;
+      <button data-go="${rel.idx},${rel.mode}" title="Relative: same notes, different home"><span>Rel.</span>${rel.short}</button>
+      <button data-go="${dom.idx},${dom.mode}" title="Dominant: one step clockwise"><span>↻</span>${dom.short}</button>
+      <button data-go="${sub.idx},${sub.mode}" title="Subdominant: one step counter-clockwise"><span>↺</span>${sub.short}</button>
+      <button data-go="${par.idx},${par.mode}" title="Parallel: same home note, other mode"><span>Par.</span>${par.short}</button>
+    </div>`;
   renderInfoLive();
 }
-const chordCard = (c, extra) => `<div class="chord${extra ? ' extra' : ''}" data-pcs="${c.pcs.join(',')}"><div class="r">${c.roman}</div><div class="n">${c.name}</div><div class="t">${c.noteNames}</div></div>`;
+const chordCard = (c, extra, tip) => `<div class="chord${extra ? ' extra' : ''}" data-pcs="${c.pcs.join(',')}" title="${tip || c.noteNames}"><div class="r">${c.roman}</div><div class="n">${c.name}</div><div class="t">${c.noteNames}</div></div>`;
 function renderInfoLive() {
   const hp = heldPcs(), hpArr = [...hp];
   document.querySelectorAll('#info .chip').forEach(el => el.classList.toggle('live', hp.has(+el.dataset.pc)));
@@ -979,6 +1063,7 @@ const Explore = {
     const newNote = pretty(dom.scale.find(n => !k.scale.some(m => m.name === n.name))?.name || '');
     const lostNote = pretty(k.scale.find(n => !dom.scale.some(m => m.name === n.name))?.name || '');
     const tips = [];
+    tips.push(`<b>Pick a key on the circle:</b> outer ring = major, inner ring = minor. Tap F♯/G♭ (or B/C♭, D♭/C♯) again to flip its spelling.`);
     tips.push(`<b>A key is 7 neighbours on the circle.</b> The green arc in the middle shows the 7 notes of ${k.label} — they sit side by side on the circle of fifths.`);
     tips.push(`<b>One step clockwise changes one note.</b> ${k.label} → ${dom.label}: ${lostNote} becomes ${newNote}. That's why neighbouring keys sound so close.`);
     if (k.sigType === 'sharp') tips.push(`<b>Sharps come in a fixed order:</b> F♯ C♯ G♯ D♯ A♯ E♯ B♯ (“Father Charles Goes Down And Ends Battle”). In a major key the <b>last sharp is one half-step below the tonic</b> — here ${pretty(k.sharps.at(-1))}${k.mode === 'major' ? ` → ${pretty(k.tonic)}` : ''}.`);
@@ -990,7 +1075,8 @@ const Explore = {
     tips.push(`<b>Play a chord</b> — the centre names it and gives its Roman numeral in ${k.label}. Green notes are in the key, red ones are outside it.`);
     P().innerHTML = `<div class="two">
       <div><h3 style="margin-top:0">What you're playing</h3><div class="live-box" id="exLive"></div>
-        <div class="row" style="margin-top:14px"><button id="exScale">▶ Hear the ${k.label} scale</button><button id="exCad">▶ Hear I–IV–V–I</button></div></div>
+        <div class="row" style="margin-top:14px"><button id="exScale">▶ Hear the ${k.label} scale</button><button id="exCad">▶ Hear I–IV–V–I</button></div>
+        <div class="muted small" style="margin-top:12px">${(() => { const st = kstat(k.id), a = st.chordRight + st.chordWrong; return `Your progress in ${k.label}: scale runs <b>${st.scaleRuns}</b>${st.scaleBest ? ` (best ${(st.scaleBest / 1000).toFixed(1)}s)` : ''} · chords <b>${st.chordRight}</b>${a ? ` (${Math.round(st.chordRight / a * 100)}% right)` : ''} · progressions <b>${st.progRuns}</b>`; })()}</div></div>
       <div><h3 style="margin-top:0">How ${k.label} works</h3><ul class="tips">${tips.map(t => `<li>${t}</li>`).join('')}</ul></div></div>`;
     $('#exScale').onclick = () => playScale(key);
     $('#exCad').onclick = () => { const c = key.mode === 'major' ? key.chords : [key.chords[0], key.chords[3], key.harmV, key.chords[0]]; const seq = key.mode === 'major' ? [c[0], c[3], c[4], c[0]] : c; playSequence(seq.map((ch, i) => ({ midis: voice(ch.pcs), at: i * 0.9, dur: 0.85 }))); };
@@ -1111,7 +1197,7 @@ const Chords = {
         <span class="spacer"></span>
         <button class="ghost" id="chKey">Change key ↻</button>
       </div>
-      <div class="muted small" style="margin-top:10px">Any inversion and any octave counts — just hold all the notes of the chord at once. Hide the chord name to train thinking in Roman numerals: that's what makes you fluent in every key.</div>`;
+      <details class="help"><summary>How it works</summary><div>Any inversion and any octave counts — just hold all the notes of the chord at once. Hide the chord name to train thinking in Roman numerals: that's what makes you fluent in every key.</div></details>`;
     $('#chHear').onclick = () => playChord(t.pcs);
     $('#chReveal').onclick = () => { hintPcs = new Set(t.pcs); renderKeyboardState(); $('#chFb').className = 'feedback'; $('#chFb').textContent = `${t.roman} = ${t.name}: ${t.noteNames}`; this.bad = true; };
     $('#chSkip').onclick = () => { clearTargets(); this.streak = 0; this.newTarget(); };
@@ -1187,7 +1273,7 @@ const Progs = {
         <label class="toggle"><input type="checkbox" data-set="sevenths" ${settings.sevenths ? 'checked' : ''}> 7ths</label>
       </div>
       <div class="row">${nextKeyControls()}</div>
-      <div class="muted small" style="margin-top:10px">This is the heart of learning keys: the same progression, transposed around the circle. Think in numbers (I, IV, V…) instead of letter names, and every key starts to feel the same under your hands.</div>`;
+      <details class="help"><summary>How it works</summary><div>This is the heart of learning keys: the same progression, transposed around the circle. Think in numbers (I, IV, V…) instead of letter names, and every key starts to feel the same under your hands.</div></details>`;
     $('#pgHear').onclick = () => playSequence(this.seq.map((c, i) => ({ midis: voice(c.pcs), at: i * 1.0, dur: 0.95, cb: () => document.querySelectorAll('#pgCards .pcard').forEach((el, j) => el.classList.toggle('demo', j === i)) })).concat([{ midis: [], at: this.seq.length * 1.0, dur: 0.01, cb: () => document.querySelectorAll('#pgCards .pcard').forEach(el => el.classList.remove('demo')) }]));
     $('#pgRestart').onclick = () => this.reset();
     this.update();
@@ -1389,7 +1475,7 @@ const Inversions = {
         <div class="row"><button id="invHear">▶ Hear it</button><button id="invRestart">Restart</button>${opts}
           <label class="toggle"><input type="checkbox" data-set="showHints" ${settings.showHints ? 'checked' : ''}> Show next shape on keyboard</label></div>
         <div class="row">${nextKeyControls()}</div>
-        <div class="muted small" style="margin-top:10px">The <b>lowest note</b> decides the name: root at the bottom = root position, 3rd at the bottom = 1st inversion, 5th at the bottom = 2nd inversion${settings.sevenths ? ', 7th at the bottom = 3rd inversion' : ''}. Each new shape is the last one with its bottom note moved up an octave. Do all 7 chords to climb the whole key.</div>`;
+        <details class="help"><summary>How it works</summary><div>The <b>lowest note</b> decides the name: root at the bottom = root position, 3rd at the bottom = 1st inversion, 5th at the bottom = 2nd inversion${settings.sevenths ? ', 7th at the bottom = 3rd inversion' : ''}. Each new shape is the last one with its bottom note moved up an octave. Do all 7 chords to climb the whole key.</div></details>`;
     } else if (m === 'random') {
       const { c, inv } = this.q;
       body = `
@@ -1415,7 +1501,7 @@ const Inversions = {
           <button id="invHear">▶ Hear it</button><button id="invRestart">Restart</button>${opts}
           <label class="toggle"><input type="checkbox" data-set="showHints" ${settings.showHints ? 'checked' : ''}> Show next chord on keyboard</label></div>
         <div class="row">${nextKeyControls()}</div>
-        <div class="muted small" style="margin-top:10px">This is why inversions matter: notes the chords share stay put, and the others move a step or two. Once it feels easy, turn on <b>Smooth inversions</b> in the Loop challenge and play it in time.</div>`;
+        <details class="help"><summary>How it works</summary><div>This is why inversions matter: notes the chords share stay put, and the others move a step or two. Once it feels easy, turn on <b>Smooth inversions</b> in the Loop challenge and play it in time.</div></details>`;
     }
     P().innerHTML = `<div class="row" style="margin-bottom:14px">${tabs}</div>${body}`;
     P().querySelectorAll('[data-inv]').forEach(b => b.onclick = () => { setSetting('invMode', b.dataset.inv); this.reset(); });
@@ -1710,7 +1796,7 @@ const Loop = {
         <select data-set="loopChangeAfter">${[[0, 'never'], [1, 'loop'], [2, '2 loops'], [4, '4 loops'], [8, '8 loops']].map(([v, l]) => `<option value="${v}" ${+settings.loopChangeAfter === v ? 'selected' : ''}>${l}</option>`).join('')}</select>
         <select data-set="nextDir">${[['cw', 'going ↻ (up a 5th)'], ['ccw', 'going ↺ (up a 4th)'], ['random', 'to a random key']].map(([v, l]) => `<option value="${v}" ${settings.nextDir === v ? 'selected' : ''}>${l}</option>`).join('')}</select>
       </div>
-      <div class="muted small" style="margin-top:10px">Land each chord on the first (higher) click of its bar. Within 90 ms is <b>Perfect</b>, within 180 ms is <b>Great</b>, and you can be up to half a beat early or late. A chord held over from before has to be struck again. Turn on “Change key” to see how far around the circle you get without a mistake.</div>`;
+      <details class="help"><summary>How it works</summary><div>Land each chord on the first (higher) click of its bar. Within 90 ms is <b>Perfect</b>, within 180 ms is <b>Great</b>, and you can be up to half a beat early or late. A chord held over from before has to be struck again. Turn on “Change key” to see how far around the circle you get without a mistake.</div></details>`;
     $('#lpGo').onclick = () => this.toggle();
     $('#lpTempo').oninput = e => { $('#lpTempoV').textContent = e.target.value; };
     $('#lpTempo').onchange = e => setSetting('loopBpm', +e.target.value);
@@ -1773,6 +1859,8 @@ function setMode(m) {
   clearTimeout(autoTimer); clearInterval(Scales.tick); clearDemo();
   curMode = m;
   document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.mode === m));
+  const tb = $('#tabs'), on = tb.querySelector('.on');   // keep the active tab visible on narrow screens
+  if (on && (on.offsetLeft < tb.scrollLeft || on.offsetLeft + on.offsetWidth > tb.scrollLeft + tb.clientWidth)) tb.scrollLeft = on.offsetLeft - 20;
   modes[m].enter();
 }
 $('#tabs').addEventListener('click', e => { const b = e.target.closest('button'); if (b) setMode(b.dataset.mode); });
