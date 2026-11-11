@@ -255,6 +255,28 @@ input[type=range]{accent-color:var(--gold);vertical-align:middle}
 .picker button.on{background:var(--gold);color:#1a1405;border-color:var(--gold)}
 .pcard .inv{font-size:10.5px;color:var(--muted)}
 
+/* learn */
+.unit{margin:16px 0 4px}
+.unit-h{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:8px}
+.unit-h b{font-size:15px}
+.unit-h .muted{font-size:13px}
+.lessons{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px}
+.lesson{display:flex;align-items:center;gap:10px;text-align:left;padding:8px 10px;border-radius:12px}
+.lesson .ln{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:700;background:var(--line2);flex:none}
+.lesson.done .ln{background:var(--in);color:#062a20}
+.lesson.next{border-color:var(--gold);box-shadow:0 0 0 3px var(--gold-dim)}
+.lesson.next .ln{background:var(--gold);color:#1a1405}
+.lesson.locked{opacity:.4;cursor:not-allowed}
+.lesson b{display:block;font-size:13.5px;font-weight:600;line-height:1.25}
+.lesson .st{font-size:12px;color:var(--gold);letter-spacing:1px}
+.ln-top{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+.lbar{flex:1;height:10px;background:var(--line2);border-radius:9px;overflow:hidden}
+.lbar i{display:block;height:100%;background:var(--in);border-radius:9px;transition:width .4s}
+.read{font-size:16px;line-height:1.6;max-width:740px}
+.read p{margin:0 0 10px}
+.done-screen{text-align:center;padding:24px 0}
+.stars-big{font-size:52px;color:var(--gold);letter-spacing:8px;line-height:1.1}
+
 /* ===== compact app layout ===== */
 :root{--kb-h:128px}
 body{padding-bottom:calc(var(--kb-h) + 40px + env(safe-area-inset-bottom))}
@@ -366,13 +388,14 @@ h3{margin:10px 0 6px;font-size:11px}
   </aside>
   <section class="card practice-card">
     <nav class="tabs" id="tabs">
-      <button data-mode="explore" class="on">Explore</button>
+      <button data-mode="learn" class="on">Learn</button>
+      <button data-mode="explore">Explore</button>
       <button data-mode="scales">Scales</button>
       <button data-mode="chords">Chords</button>
       <button data-mode="inversions">Inversions</button>
       <button data-mode="progressions">Progressions</button>
-      <button data-mode="loop">Loop challenge</button>
-      <button data-mode="quiz">Theory quiz</button>
+      <button data-mode="loop">Loop</button>
+      <button data-mode="quiz">Quiz</button>
       <button data-mode="progress">Progress</button>
     </nav>
     <div id="practice"></div>
@@ -673,7 +696,7 @@ function click(at, accent) {
    ================================================================ */
 const ymd = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 const today = () => ymd(new Date());
-const game = Object.assign({ xp: 0, goal: 50, days: {}, badges: {}, records: {}, keysDone: {}, bestLoops: 0, bestRow: 0, maxBpm: 0, bestPerfect: 0, quizBest: 0, piano: false, invRight: 0, smoothDone: 0, climbDone: 0 }, store.game);
+const game = Object.assign({ xp: 0, goal: 50, days: {}, badges: {}, records: {}, keysDone: {}, bestLoops: 0, bestRow: 0, maxBpm: 0, bestPerfect: 0, quizBest: 0, piano: false, invRight: 0, smoothDone: 0, climbDone: 0, lessons: {} }, store.game);
 store.game = game;
 function levelInfo(xp) { let L = 1, need = 100, rest = xp; while (rest >= need) { rest -= need; L++; need = 100 + (L - 1) * 50; } return { L, into: rest, need }; }
 function dayStreak() {
@@ -706,6 +729,10 @@ function addXP(n) {
 }
 const countKeys = (mode, pred) => Array.from({ length: 12 }, (_, i) => i + '-' + mode).filter(pred).length;
 const BADGES = [
+  { id: 'lesson1',  ic: '🌱', name: 'First lesson',      desc: 'Finish your first lesson',                   test: () => Object.keys(game.lessons).length >= 1 },
+  { id: 'unit1',    ic: '🧭', name: 'Off the ground',    desc: 'Finish Unit 1 of the path',                  test: () => CURRICULUM[0].lessons.every(l => game.lessons[l.id]) },
+  { id: 'stars30',  ic: '🌟', name: 'Star student',      desc: 'Collect 30 lesson stars',                    test: () => Object.values(game.lessons).reduce((a, r) => a + r.stars, 0) >= 30 },
+  { id: 'graduate', ic: '🎓', name: 'Graduate',          desc: 'Finish every lesson on the path',            test: () => LESSONS.every(l => game.lessons[l.id]) },
   { id: 'piano',    ic: '🎹', name: 'Plugged in',        desc: 'Connect a MIDI piano',                       test: () => game.piano },
   { id: 'prog1',    ic: '🎶', name: 'First progression', desc: 'Finish a chord progression',                 test: () => Object.keys(game.keysDone).length > 0 },
   { id: 'loop5',    ic: '🔁', name: 'In the pocket',     desc: '5 clean loops in a row',                     test: () => game.bestLoops >= 5 },
@@ -1311,33 +1338,33 @@ const Quiz = {
   keyChanged() { if (settings.quizScope === 'current') this.next(); else this.render(); },
   settingChanged(s) { if (s === 'quizScope') this.next(); },
   randKey() { return settings.quizScope === 'current' ? key : makeKey(rand(12), Math.random() < 0.7 ? 'major' : 'minor'); },
-  gens() {
+  gens(pk = () => this.randKey(), o = {}) {
     const g = {
-      degree: () => { const k = this.randKey(), d = 1 + rand(6), n = k.scale[d], dn = (k.mode === 'major' ? DEG_MAJ : DEG_MIN)[d];
+      degree: () => { const k = pk(), d = 1 + rand(6), n = k.scale[d], dn = (k.mode === 'major' ? DEG_MAJ : DEG_MIN)[d];
         return { k, text: `Play the <b>${dn}</b> (${ORD[d]} degree) of <b>${k.label}</b>`, kind: 'single', ans: [n.pc],
           explain: `${k.label}: ${k.scale.map(s => pretty(s.name)).join(' ')} — the ${ORD[d]} note is <b>${pretty(n.name)}</b>.` }; },
-      signature: () => { let k, i = 0; do { k = this.randKey(); } while (!k.sigType && i++ < 30); if (!k.sigType) return null;
+      signature: () => { let k, i = 0; do { k = pk(); } while (!k.sigType && i++ < 30); if (!k.sigType) return null;
         const list = k.sharps.length ? k.sharps : k.flats;
         return { k, text: `Play all the <b>${k.sigType}s</b> in the key of <b>${k.label}</b> (one at a time is fine)`, kind: 'set', ans: list.map(pcOf),
           explain: `${k.label} has ${sigText(k)}: <b>${list.map(pretty).join(' ')}</b>${k.sigType === 'sharp' ? ' (always in the order F C G D A E B)' : ' (always in the order B E A D G C F)'}.` }; },
-      relative: () => { const k = this.randKey(), r = makeKey(k.idx, k.mode === 'major' ? 'minor' : 'major');
+      relative: () => { const k = pk(), r = makeKey(k.idx, k.mode === 'major' ? 'minor' : 'major');
         return { k, text: `Play the tonic of the <b>relative ${r.mode}</b> of <b>${k.label}</b>`, kind: 'single', ans: [r.tonicPc],
           explain: `${k.label} and <b>${r.label}</b> share the same key signature (${sigText(k)}). ${k.mode === 'major' ? 'Relative minor = 6th note of the major scale (or 3 half-steps down).' : 'Relative major = 3rd note of the minor scale (3 half-steps up).'}` }; },
-      sigToKey: () => { if (settings.quizScope === 'current') return null; const n = 1 + rand(6), sharp = Math.random() < 0.5, k = makeKey(sharp ? n : 12 - n, 'major');
+      sigToKey: () => { if (settings.quizScope === 'current' && !o.lesson) return null; const n = 1 + rand(o.maxSig || 6), sharp = o.side ? o.side === 'sharp' : Math.random() < 0.5, k = makeKey(sharp ? n : 12 - n, 'major');
         return { k, text: `Which <b>major</b> key has <b>${n} ${sharp ? 'sharp' : 'flat'}${n > 1 ? 's' : ''}</b>? Play its tonic.`, kind: 'single', ans: [k.tonicPc],
           explain: `<b>${k.label}</b>: ${sigList(k)}. ${sharp ? 'Trick: the last sharp is a half-step below the key.' : n === 1 ? 'One flat = F major (memorise this one).' : 'Trick: the second-to-last flat names the key.'}` }; },
-      chordTones: () => { const k = this.randKey(), c = pick(settings.sevenths ? k.chords7 : k.chords);
+      chordTones: () => { const k = pk(), c = pick(settings.sevenths ? k.chords7 : k.chords);
         return { k, text: `Play the notes of the <b>${c.roman}</b> chord in <b>${k.label}</b>`, kind: 'set', ans: c.pcs,
           explain: `${c.roman} in ${k.label} = <b>${c.name}</b>: ${c.noteNames}.` }; },
-      neighbour: () => { const k = this.randKey(), cw = Math.random() < 0.5, n = makeKey(k.idx + (cw ? 1 : -1), k.mode);
+      neighbour: () => { const k = pk(), cw = Math.random() < 0.5, n = makeKey(k.idx + (cw ? 1 : -1), k.mode);
         return { k, text: `Which key is one step <b>${cw ? 'clockwise ↻' : 'counter-clockwise ↺'}</b> from <b>${k.label}</b> on the circle? Play its tonic.`, kind: 'single', ans: [n.tonicPc],
           explain: `<b>${n.label}</b>. ${cw ? 'Clockwise = up a perfect 5th, one more sharp (or one less flat).' : 'Counter-clockwise = up a perfect 4th, one more flat (or one less sharp).'}` }; },
     };
-    return Object.values(g);
+    return g;
   },
   next() {
     clearTimeout(autoTimer); clearTargets();
-    let q = null; while (!q) q = pick(this.gens())();
+    let q = null; while (!q) q = pick(Object.values(this.gens()))();
     this.q = q; this.got = new Set(); this.answered = false;
     this.render();
   },
@@ -1646,6 +1673,7 @@ const Loop = {
     if (now >= last.start && !last.gen) { last.gen = true; this.nextLoop(last); }
     if (this.phase === 'play') {
       this.tryHit(now);
+      if (!this.running) return;
       const t = this.target();
       if (t && now > t.start + this.win(t)) return this.fail('missed', t);
     }
@@ -1677,6 +1705,7 @@ const Loop = {
       if (s.inv != null) game.smoothDone++;
       game.bestLoops = Math.max(game.bestLoops, this.loops); game.maxBpm = Math.max(game.maxBpm, s.bpm);
       addXP(5 + Math.max(0, Math.floor((s.bpm - 60) / 20)) * 2 + Math.min(5, this.loops - 1));
+      if (Learn.loopGoal && this.loops >= Learn.loopGoal.loops) return Learn.loopReached();
     } else save();
     this.lastBeatKey = null;
     this.updateScore();
@@ -1689,6 +1718,7 @@ const Loop = {
     }
     if (this.phase !== 'play') return;
     this.tryHit(performance.now());
+    if (!this.running) return;
     const t = this.target(); if (!t) return;
     const i = this.slots.indexOf(t), prev = i > 0 ? this.slots[i - 1] : null;
     const allowed = new Set([...t.chord.pcs, ...(prev ? prev.chord.pcs : [])]);
@@ -1701,6 +1731,7 @@ const Loop = {
       reason = s.inv != null && Math.min(...held) % 12 !== c.pcs[s.inv] ? 'inversion' : 'early';
     const played = identify([...held], key);
     this.halt(); this.phase = 'fail'; s.miss = true; this.failLoop = s.loop;
+    if (Learn.loopGoal) Learn.mistakes++;
     if (s.keyId !== key.id) { this.transposing = true; setKey(s.k.idx, s.k.mode, s.k.alt); this.transposing = false; }
     const why = reason === 'wrong' ? `You played ${played?.name || 'other notes'}. ${c.roman} is ${c.name} (${c.noteNames})`
       : reason === 'early' ? `Too early on ${c.roman}. Land it on the click`
@@ -1763,7 +1794,7 @@ const Loop = {
     const rec = game.records[this.running ? this.recId : this.recIdNow()];
     const run = this.running, lr = this.lastRun, failed = this.phase === 'fail';
     const b = +settings.loopBpc;
-    P().innerHTML = `
+    P().innerHTML = `${Learn.loopGoal ? `<div class="result" style="margin:0 0 10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">🎓 <span>Lesson goal: <b>${Learn.loopGoal.loops} clean loop${Learn.loopGoal.loops > 1 ? 's' : ''} in a row</b>. Settings are set for you.</span><span class="spacer"></span><button class="ghost small" id="lpBack">← Back to lesson</button></div>` : ''}
       <div class="row"><div><div class="prompt">Play the progression in time, round and round. One mistake and you start over.</div>
         <div class="big" id="lpKey" style="font-size:34px">${key.label}</div></div>
         <div class="spacer"></div>
@@ -1798,6 +1829,7 @@ const Loop = {
       </div>
       <details class="help"><summary>How it works</summary><div>Land each chord on the first (higher) click of its bar. Within 90 ms is <b>Perfect</b>, within 180 ms is <b>Great</b>, and you can be up to half a beat early or late. A chord held over from before has to be struck again. Turn on “Change key” to see how far around the circle you get without a mistake.</div></details>`;
     $('#lpGo').onclick = () => this.toggle();
+    if ($('#lpBack')) $('#lpBack').onclick = () => setMode('learn');
     $('#lpTempo').oninput = e => { $('#lpTempoV').textContent = e.target.value; };
     $('#lpTempo').onchange = e => setSetting('loopBpm', +e.target.value);
     if (failed) { this.renderCards(this.failLoop); this.paint(null, -1); }
@@ -1852,15 +1884,420 @@ const ProgressTab = {
   },
 };
 
-const modes = { explore: Explore, scales: Scales, chords: Chords, inversions: Inversions, progressions: Progs, loop: Loop, quiz: Quiz, progress: ProgressTab };
-let curMode = 'explore';
+/* ================================================================
+   Curriculum
+   ================================================================ */
+function keyBy(name, mode = 'major') {
+  const names = mode === 'major' ? MAJ_NAMES : MIN_NAMES, alts = mode === 'major' ? MAJ_ALT : MIN_ALT;
+  const i = names.indexOf(name);
+  return i >= 0 ? makeKey(i, mode) : makeKey(+Object.keys(alts).find(j => alts[j] === name), mode, true);
+}
+// Targets: things to play. A note (pitch class, optional direction) or a chord (optional inversion).
+const T = {
+  note: (pc, label, x = {}) => ({ kind: 'note', pc, label, ...x }),
+  chord: (c, inv = null, x = {}) => ({ kind: 'chord', chord: c, pcs: c.pcs, inv, label: inv != null ? slashName(c, inv) : c.name, sub: c.roman, ...x }),
+};
+function scaleT(k, variant) {
+  variant ||= k.mode === 'major' ? 'major' : 'natural';
+  const asc = spellScale(k.tonic, SCALES[variant]), desc = variant === 'melodic' ? spellScale(k.tonic, SCALES.natural) : asc;
+  const f = variant === 'major' ? FINGERING[k.tonicPc] : null, fs = i => f ? `RH ${f.rh[i]}` : '';
+  return [...asc.map((n, i) => T.note(n.pc, pretty(n.name), { dir: 'up', sub: fs(i) })), T.note(asc[0].pc, pretty(asc[0].name), { dir: 'up', sub: fs(7) }),
+    ...[6, 5, 4, 3, 2, 1, 0].map(i => T.note(desc[i].pc, pretty(desc[i].name), { dir: 'down', sub: fs(i) }))];
+}
+function degChords(k, degs, o = {}) {
+  const cs = degs.map(d => d === 'V' ? (o.sev ? k.harmV7 : k.harmV) : (o.sev ? k.chords7 : k.chords)[d]);
+  const vl = o.smooth ? voiceLead(cs) : null;
+  return cs.map((c, i) => T.chord(c, vl ? vl[i].inv : null, vl ? { midis: vl[i].midis, sub: `${c.roman} · ${INV_NAMES[vl[i].inv].replace(' position', '').replace(' inversion', ' inv.')}` } : {}));
+}
+const climbT = c => { const n = c.pcs.length; return [...Array(n).keys(), 0].map((inv, i) => T.chord(c, inv, { climb: true, sub: i === n ? 'root, octave up' : INV_NAMES[inv].replace(' position', '').replace(' inversion', ' inv.') })); };
+const romans = (k, degs, o) => degChords(k, degs, o).map(t => t.chord.roman).join('–');
+// Step builders
+const S = {
+  read: (html, demo) => ({ t: 'read', html, demo }),
+  seq: (key, prompt, targets, mode = 'major') => ({ t: 'seq', key, mode, prompt, targets }),
+  scale: (key, mode = 'major', variant) => S.seq(key, k => `Play the ${k.label} scale${variant === 'harmonic' ? ' (harmonic)' : ''} one octave up and back down. Any octave is fine.`, k => scaleT(k, variant), mode),
+  prog: (key, degs, o = {}, mode = 'major') => S.seq(key, o.prompt || (k => `Play ${romans(k, degs, o)} in ${k.label}${o.smooth ? ', in the inversions shown' : ''}. Hold each chord until it turns green.`), k => degChords(k, degs, o), mode),
+  climb: (key, deg, mode = 'major') => S.seq(key, k => `Climb ${k.chords[deg].name} (${k.chords[deg].roman}) through its inversions, going up the keyboard.`, k => climbT(k.chords[deg]), mode),
+  drill: (key, prompt, gen, n = 8, mode = 'major') => ({ t: 'drill', key, mode, prompt, gen, n }),
+  quiz: (gens, keys, n = 5, opts = {}) => ({ t: 'quiz', gens, keys, n, opts: { lesson: true, ...opts } }),
+  loop: (key, cfg, mode = 'major') => ({ t: 'loop', key, mode, bpc: 4, ...cfg }),
+};
+// Drill generators: return { prompt, sub?, target, explain }
+const DR = {
+  white: () => { const n = pick(LETTERS); return { prompt: `Find <b>${n}</b>`, target: T.note(pcOf(n), n), explain: `${n}: ${{ C: 'left of the two black keys', D: 'between the two black keys', E: 'right of the two black keys', F: 'left of the three black keys', G: 'first gap in the three black keys', A: 'second gap in the three black keys', B: 'right of the three black keys' }[n]}.` }; },
+  black: () => { const pc = pick([1, 3, 6, 8, 10]), nm = Math.random() < 0.5 ? SHARP_NAMES[pc] : FLAT_NAMES[pc]; return { prompt: `Find <b>${pretty(nm)}</b>`, target: T.note(pc, pretty(nm)), explain: `${pretty(SHARP_NAMES[pc])} and ${pretty(FLAT_NAMES[pc])} are the same black key.` }; },
+  steps: () => { const from = pick(LETTERS), up = Math.random() < 0.6, whole = Math.random() < 0.5, pc = mod(pcOf(from) + (up ? 1 : -1) * (whole ? 2 : 1), 12);
+    return { prompt: `A <b>${whole ? 'whole' : 'half'} step ${up ? 'up' : 'down'}</b> from <b>${from}</b>`, target: T.note(pc, pretty(NEUTRAL_NAMES[pc])), explain: `${whole ? 'Whole step = skip one key' : 'Half step = the very next key'}, black keys included: ${from} → ${pretty(NEUTRAL_NAMES[pc])}.` }; },
+  diatonic: k => { const c = pick(k.chords); return { prompt: `<b>${c.roman}</b> in ${k.label}`, sub: c.name, target: T.chord(c), explain: `${c.roman} = ${c.name}: ${c.noteNames}` }; },
+  inversion: k => { const c = pick(k.chords.slice(0, 6)), inv = rand(3); return { prompt: `<b>${c.name}</b>, ${INV_NAMES[inv].toLowerCase()}`, sub: `the ${TONE[inv]} (${toneName(c, c.pcs[inv])}) at the bottom`, target: T.chord(c, inv), explain: `${slashName(c, inv)}: ${invVoicing(c, inv).map(m => toneName(c, m % 12)).join(' ')}` }; },
+};
+const ALL_MAJ = MAJ_NAMES.map(n => [n, 'major']);
+const CURRICULUM = [
+  { title: 'First steps', desc: 'Find your way around the keyboard', lessons: [
+    { id: 'u1-map', title: 'The keyboard map', steps: [
+      S.read(`<p>Piano keys repeat in a pattern. Look at the black keys: they come in <b>groups of two</b> and <b>groups of three</b>. That pattern is your map.</p><p>The white key just left of every group of two black keys is <b>C</b>. The one nearest the middle of your piano is <b>middle C</b> (marked C4 on the screen).</p>`),
+      S.seq('C', 'Play a C, then a higher C, then an even higher C.', () => [0, 1, 2].map(() => T.note(0, 'C', { dir: 'up' }))),
+    ] },
+    { id: 'u1-abc', title: 'The musical alphabet', steps: [
+      S.read(`<p>White keys use only seven letters: <b>C D E F G A B</b>. Then it starts again at C.</p><p>D sits between the two black keys. F is just left of the three black keys.</p>`),
+      S.seq('C', 'Play the white keys from C up to the next C.', () => ['C', 'D', 'E', 'F', 'G', 'A', 'B', 'C'].map(n => T.note(pcOf(n), n, { dir: 'up' }))),
+      S.drill('C', 'Find each white key', DR.white, 8),
+    ] },
+    { id: 'u1-sharps', title: 'Sharps and flats', steps: [
+      S.read(`<p>A <b>sharp ♯</b> is the key directly to the right. A <b>flat ♭</b> is the key directly to the left.</p><p>So the black key between C and D is both <b>C♯</b> and <b>D♭</b>: one key, two names. There's no black key between E–F or B–C.</p>`),
+      S.drill('C', 'Find each black key', DR.black, 8),
+    ] },
+    { id: 'u1-steps', title: 'Half steps and whole steps', steps: [
+      S.read(`<p>A <b>half step</b> is the very next key, black or white. A <b>whole step</b> is two half steps: skip one key.</p><p>Every scale and chord is built from these two distances.</p>`),
+      S.drill('C', 'Play the note', DR.steps, 8),
+    ] },
+  ] },
+  { title: 'C major: your home key', desc: 'Your first scale, chords and progression', lessons: [
+    { id: 'u2-scale', title: 'The C major scale', steps: [
+      S.read(`<p>A <b>major scale</b> follows the pattern <b>whole–whole–half–whole–whole–whole–half</b>. Starting on C, that's all white keys: C D E F G A B C.</p><p>Right hand: fingers <b>1 2 3</b> (thumb, index, middle), tuck your thumb under to F, then <b>1 2 3 4 5</b>. Reverse it on the way down.</p>`, () => scaleT(keyBy('C'))),
+      S.scale('C'),
+    ] },
+    { id: 'u2-triad', title: 'Building a chord', steps: [
+      S.read(`<p>The most common chord is a <b>triad</b>: three notes, skipping every other note of the scale. Take C, skip D, take E, skip F, take G: <b>C E G is C major</b>.</p><p>Use fingers 1, 3 and 5. Press all three keys together.</p>`),
+      S.seq('C', 'Play C, then F, then G major.', k => [0, 3, 4].map(d => T.chord(k.chords[d]))),
+    ] },
+    { id: 'u2-minor', title: 'Major vs minor', steps: [
+      S.read(`<p>Count half steps from the bottom note to the middle one. <b>4</b> = <b>major</b> (bright). <b>3</b> = <b>minor</b> (dark).</p><p>To turn C into Cm, move the middle note down one key: C E♭ G.</p>`),
+      S.seq('C', 'Switch between major and minor: C, Cm, F, Fm, G, Gm.', () => ['C', 'F', 'G'].flatMap(n => [T.chord(keyBy(n).chords[0], null, { sub: 'major' }), T.chord(keyBy(n, 'minor').chords[0], null, { sub: 'minor' })])),
+    ] },
+    { id: 'u2-seven', title: 'The 7 chords of C major', steps: [
+      S.read(`<p>Build a triad on every note of the scale, using only notes from the scale. You get the <b>7 chords of the key</b>.</p><p>They're numbered with Roman numerals: <b>I ii iii IV V vi vii°</b>. Uppercase = major, lowercase = minor, ° = diminished. The numbers work in every key: that's the secret to playing in all of them.</p>`),
+      S.seq('C', 'Play all 7 chords of C major, going up.', k => k.chords.map(c => T.chord(c))),
+      S.drill('C', 'Play the chord', DR.diatonic, 8),
+    ] },
+    { id: 'u2-cadence', title: 'Your first progression', steps: [
+      S.read(`<p>A <b>progression</b> is a series of chords. <b>I–IV–V–I</b> is the most basic one in music: home, away, tension, home again.</p><p>In C that's C–F–G–C.</p>`, () => degChords(keyBy('C'), [0, 3, 4, 0])),
+      S.prog('C', [0, 3, 4, 0]),
+      S.loop('C', { prog: 3, bpm: 60, loops: 2, text: `<p>Now play it in time. Each chord gets 4 clicks: change on the first (higher) one.</p>` }),
+    ] },
+  ] },
+  { title: 'New keys: G and F', desc: 'Key signatures and your first neighbours on the circle', lessons: [
+    { id: 'u3-sig', title: 'Key signatures', steps: [
+      S.read(`<p>Other keys need black keys. <b>G major</b> uses F♯ instead of F. <b>F major</b> uses B♭ instead of B.</p><p>The sharps or flats a key needs are its <b>key signature</b>. On the circle of fifths, each step clockwise adds a sharp; each step counter-clockwise adds a flat.</p>`),
+      S.quiz(['signature', 'neighbour'], [['G', 'major'], ['F', 'major'], ['D', 'major'], ['Bb', 'major']], 5),
+    ] },
+    { id: 'u3-g', title: 'G major', steps: [
+      S.read(`<p>G major: G A B C D E <b>F♯</b> G. Same fingering as C.</p><p>Its main chords: I = G, IV = C, V = D.</p>`),
+      S.scale('G'), S.prog('G', [0, 3, 4, 0]),
+    ] },
+    { id: 'u3-f', title: 'F major', steps: [
+      S.read(`<p>F major: F G A <b>B♭</b> C D E F.</p><p>The right hand changes: <b>1 2 3 4</b>, thumb under to C, then <b>1 2 3 4</b>. Main chords: I = F, IV = B♭, V = C.</p>`),
+      S.scale('F'), S.prog('F', [0, 3, 4, 0]),
+    ] },
+    { id: 'u3-pop', title: 'One progression, three keys', steps: [
+      S.read(`<p><b>I–V–vi–IV</b> is behind hundreds of pop songs. Play it in C, then G, then F.</p><p>The letters change, but the numbers and the movement under your hand stay the same.</p>`, () => degChords(keyBy('C'), [0, 4, 5, 3])),
+      S.prog('C', [0, 4, 5, 3]), S.prog('G', [0, 4, 5, 3]), S.prog('F', [0, 4, 5, 3]),
+      S.loop('C', { prog: 0, bpm: 66, loops: 3, text: `<p>Now in time: I–V–vi–IV in C.</p>` }),
+    ] },
+  ] },
+  { title: 'Inversions', desc: 'Same chord, different shapes, smoother changes', lessons: [
+    { id: 'u4-inv', title: 'Same chord, new shape', steps: [
+      S.read(`<p>You can stack a chord's notes in any order. The <b>lowest note</b> names the shape:</p><p>Root at the bottom = <b>root position</b> (C E G). 3rd at the bottom = <b>1st inversion</b> (E G C). 5th at the bottom = <b>2nd inversion</b> (G C E).</p>`, () => climbT(keyBy('C').chords[0])),
+      S.climb('C', 0),
+    ] },
+    { id: 'u4-fg', title: 'Inversions of F and G', steps: [S.climb('C', 3), S.climb('C', 4)] },
+    { id: 'u4-drill', title: 'Inversion drill', steps: [S.drill('C', 'Play the chord in the shape asked for', DR.inversion, 8)] },
+    { id: 'u4-smooth', title: 'Smooth chord changes', steps: [
+      S.read(`<p>Pianists use inversions so their hand barely moves: keep the notes the chords share, and move the rest to the nearest key.</p><p>I–IV–V–I in C becomes <b>C → F/C → G/B → C</b>.</p>`, () => degChords(keyBy('C'), [0, 3, 4, 0], { smooth: true })),
+      S.prog('C', [0, 3, 4, 0], { smooth: true }), S.prog('C', [0, 4, 5, 3], { smooth: true }),
+    ] },
+    { id: 'u4-loop', title: 'Smooth, in time', steps: [S.loop('C', { prog: 0, bpm: 60, loops: 3, smooth: true, text: `<p>I–V–vi–IV with smooth inversions, in time. The cards show which inversion to use.</p>` })] },
+  ] },
+  { title: 'Minor keys', desc: 'Relative minors, harmonic minor, minor progressions', lessons: [
+    { id: 'u5-rel', title: 'The relative minor', steps: [
+      S.read(`<p>Every major key has a <b>relative minor</b> with exactly the same notes, starting from the 6th note.</p><p>C major ↔ <b>A minor</b>: A B C D E F G A. Same key signature, darker mood.</p>`, () => scaleT(keyBy('A', 'minor'))),
+      S.scale('A', 'minor'),
+      S.quiz(['relative'], [['C', 'major'], ['G', 'major'], ['F', 'major'], ['A', 'minor'], ['E', 'minor'], ['D', 'minor']], 5),
+    ] },
+    { id: 'u5-harm', title: 'Harmonic minor and the V chord', steps: [
+      S.read(`<p>In minor keys we usually raise the 7th note a half step. In A minor, G becomes <b>G♯</b>: the <b>harmonic minor</b> scale.</p><p>That turns the weak v chord (Em) into a strong major <b>V</b> (E), which pulls you home to Am.</p>`, () => scaleT(keyBy('A', 'minor'), 'harmonic')),
+      S.scale('A', 'minor', 'harmonic'), S.prog('A', [0, 3, 'V', 0], {}, 'minor'),
+    ] },
+    { id: 'u5-prog', title: 'Minor progressions', steps: [
+      S.read(`<p><b>i–VI–III–VII</b> is the epic minor progression from film scores and rock ballads. In A minor: Am–F–C–G.</p>`, () => degChords(keyBy('A', 'minor'), [0, 5, 2, 6])),
+      S.prog('A', [0, 5, 2, 6], {}, 'minor'), S.prog('E', [0, 5, 2, 6], {}, 'minor'), S.prog('D', [0, 5, 2, 6], {}, 'minor'),
+      S.loop('A', { prog: 0, bpm: 70, loops: 3, text: `<p>The epic progression in A minor, in time.</p>` }, 'minor'),
+    ] },
+  ] },
+  { title: 'The sharp keys', desc: 'D, A, E and B major: clockwise around the circle', lessons: [
+    { id: 'u6-da', title: 'D and A major', steps: [
+      S.read(`<p><b>D major</b> has 2 sharps (F♯ C♯). <b>A major</b> has 3 (F♯ C♯ G♯). Same fingering as C.</p>`),
+      S.scale('D'), S.prog('D', [0, 3, 4, 0]), S.scale('A'), S.prog('A', [0, 3, 4, 0]),
+    ] },
+    { id: 'u6-eb', title: 'E and B major', steps: [
+      S.read(`<p><b>E major</b>: 4 sharps (F♯ C♯ G♯ D♯). <b>B major</b>: 5 sharps (+ A♯).</p><p>Trick: the <b>last sharp</b> is always one half step below the key's name.</p>`),
+      S.scale('E'), S.prog('E', [0, 3, 4, 0]), S.scale('B'), S.prog('B', [0, 3, 4, 0]),
+    ] },
+    { id: 'u6-quiz', title: 'Sharp-key quiz', steps: [S.quiz(['sigToKey', 'signature'], [['G', 'major'], ['D', 'major'], ['A', 'major'], ['E', 'major'], ['B', 'major']], 8, { side: 'sharp', maxSig: 5 })] },
+    { id: 'u6-loop', title: 'Around the sharp side', steps: [S.loop('C', { prog: 0, bpm: 60, loops: 6, change: 1, dir: 'cw', smooth: true, text: `<p>The big one: I–V–vi–IV, one loop in each key, going clockwise: <b>C → G → D → A → E → B</b>.</p>` })] },
+  ] },
+  { title: 'The flat keys', desc: 'B♭, E♭, A♭, D♭ and G♭: counter-clockwise', lessons: [
+    { id: 'u7-bbeb', title: 'B♭ and E♭ major', steps: [
+      S.read(`<p><b>B♭ major</b>: 2 flats (B♭ E♭). <b>E♭ major</b>: 3 flats (+ A♭).</p><p>Trick: the <b>second-to-last flat</b> names the key. These scales start on finger 4 (B♭) or 3 (E♭); follow the numbers.</p>`),
+      S.scale('Bb'), S.prog('Bb', [0, 3, 4, 0]), S.scale('Eb'), S.prog('Eb', [0, 3, 4, 0]),
+    ] },
+    { id: 'u7-abdb', title: 'A♭ and D♭ major', steps: [
+      S.read(`<p><b>A♭ major</b>: 4 flats (B♭ E♭ A♭ D♭). <b>D♭ major</b>: 5 flats (+ G♭). Lots of black keys: let your fingers rest on them.</p>`),
+      S.scale('Ab'), S.prog('Ab', [0, 3, 4, 0]), S.scale('Db'), S.prog('Db', [0, 3, 4, 0]),
+    ] },
+    { id: 'u7-gb', title: 'G♭ / F♯ major', steps: [
+      S.read(`<p>At the bottom of the circle: <b>G♭ major</b> (6 flats) and <b>F♯ major</b> (6 sharps) are the same keys with two names.</p><p>It's nearly all black keys, which is surprisingly comfortable.</p>`),
+      S.scale('Gb'), S.prog('Gb', [0, 3, 4, 0]),
+    ] },
+    { id: 'u7-quiz', title: 'Flat-key quiz', steps: [S.quiz(['sigToKey', 'signature'], [['F', 'major'], ['Bb', 'major'], ['Eb', 'major'], ['Ab', 'major'], ['Db', 'major']], 8, { side: 'flat', maxSig: 5 })] },
+    { id: 'u7-loop', title: 'Around the flat side', steps: [S.loop('C', { prog: 0, bpm: 60, loops: 6, change: 1, dir: 'ccw', smooth: true, text: `<p>I–V–vi–IV, one loop per key, going counter-clockwise: <b>C → F → B♭ → E♭ → A♭ → D♭</b>.</p>` })] },
+  ] },
+  { title: 'Seventh chords', desc: 'Richer chords and the jazz ii–V–I', lessons: [
+    { id: 'u8-sev', title: 'Adding the 7th', steps: [
+      S.read(`<p>Stack one more note (skip one again) on a triad and you get a <b>seventh chord</b>: richer and jazzier.</p><p>In a major key: I = <b>maj7</b>, ii = <b>m7</b>, iii = <b>m7</b>, IV = <b>maj7</b>, V = <b>7</b> (dominant), vi = <b>m7</b>, vii = <b>ø7</b>.</p>`),
+      S.seq('C', 'Play all 7 seventh chords of C major, going up.', k => k.chords7.map(c => T.chord(c))),
+    ] },
+    { id: 'u8-251', title: 'ii–V–I', steps: [
+      S.read(`<p><b>ii–V–I</b> is the backbone of jazz. In C: Dm7–G7–Cmaj7.</p><p>Jazz tunes often move counter-clockwise around the circle, so practise it in C, then F, then B♭.</p>`, () => degChords(keyBy('C'), [1, 4, 0], { sev: true, smooth: true })),
+      S.prog('C', [1, 4, 0], { sev: true }), S.prog('F', [1, 4, 0], { sev: true }), S.prog('Bb', [1, 4, 0], { sev: true }),
+    ] },
+    { id: 'u8-loop', title: 'ii–V–I in time', steps: [S.loop('C', { prog: 2, bpm: 60, loops: 3, sev: true, smooth: true, change: 1, dir: 'ccw', text: `<p>ii–V–I with seventh chords and smooth inversions: one loop each in C, F and B♭.</p>` })] },
+    { id: 'u8-circle', title: 'The circle progression', steps: [
+      S.read(`<p><b>vi–ii–V–I</b>: each chord's root falls a fifth to the next. It's the strongest pull in harmony.</p>`),
+      S.prog('C', [5, 1, 4, 0], { sev: true, smooth: true }), S.prog('G', [5, 1, 4, 0], { sev: true, smooth: true }),
+    ] },
+  ] },
+  { title: 'Mastery: all 12 keys', desc: 'Everything, everywhere', lessons: [
+    { id: 'u9-scales', title: 'Every major scale', steps: [S.read(`<p>All twelve major scales, clockwise around the circle. Take your time and watch the fingering numbers.</p>`), ...ALL_MAJ.map(([n]) => S.scale(n))] },
+    { id: 'u9-pop', title: 'Pop progression in all 12 keys', steps: [S.loop('C', { prog: 0, bpm: 60, loops: 12, change: 1, dir: 'cw', smooth: true, text: `<p>I–V–vi–IV, one loop in every key, all the way around the circle.</p>` })] },
+    { id: 'u9-minor', title: 'Every minor scale', steps: [S.read(`<p>All twelve harmonic minor scales, clockwise around the circle.</p>`), ...MIN_NAMES.map(n => S.scale(n, 'minor', 'harmonic'))] },
+    { id: 'u9-jazz', title: 'ii–V–I in all 12 keys', steps: [S.loop('C', { prog: 2, bpm: 60, loops: 12, sev: true, smooth: true, change: 1, dir: 'ccw', text: `<p>The final test: ii–V–I in every key, counter-clockwise around the circle.</p>` })] },
+  ] },
+];
+const LESSONS = CURRICULUM.flatMap((u, ui) => u.lessons.map((l, i) => Object.assign(l, { unit: u, ui, num: `${ui + 1}.${i + 1}` })));
+LESSONS.forEach((l, i) => l.index = i);
+
+const Learn = {
+  view: 'path',
+  enter() {
+    clearTargets();
+    if (this.loopGoal) this.abortLoop();
+    if (this.view === 'lesson' && this.lesson) this.startStep(); else { this.view = 'path'; this.renderPath(); }
+  },
+  leave() { clearTimeout(this.timer); this.busy = false; },
+  keyChanged() {},
+  settingChanged(s) { if (s === 'unlockAll') this.renderPath(); else if (this.view === 'lesson') this.paintSeq(); },
+  unlocked(i) { return settings.unlockAll || i === 0 || !!game.lessons[LESSONS[i - 1].id] || !!game.lessons[LESSONS[i].id]; },
+  nextIndex() { const i = LESSONS.findIndex(l => !game.lessons[l.id]); return i < 0 ? 0 : i; },
+  renderPath() {
+    const done = LESSONS.filter(l => game.lessons[l.id]).length, stars = LESSONS.reduce((a, l) => a + (game.lessons[l.id]?.stars || 0), 0);
+    const nx = LESSONS[this.nextIndex()], allDone = done === LESSONS.length;
+    P().innerHTML = `
+      <div class="row"><div><div class="prompt">Your path · from first notes to every key</div><div class="big">Learn piano</div></div>
+        <div class="spacer"></div>
+        <div class="score"><span><b>${done}/${LESSONS.length}</b>lessons</span><span><b>${stars}★</b>of ${LESSONS.length * 3}</span></div></div>
+      <div class="lbar" style="margin:10px 0 12px"><i style="width:${done / LESSONS.length * 100}%"></i></div>
+      <div class="row"><button class="primary" id="lnGo">${allDone ? '🎓 All done! Replay a lesson below' : `▶ ${done ? 'Continue' : 'Start'}: ${nx.num} ${nx.title}`}</button>
+        <label class="toggle" title="Open every lesson, for players who already know the basics"><input type="checkbox" data-set="unlockAll" ${settings.unlockAll ? 'checked' : ''}> Unlock all lessons</label></div>
+      ${CURRICULUM.map((u, ui) => {
+        const ud = u.lessons.filter(l => game.lessons[l.id]).length;
+        return `<div class="unit"><div class="unit-h"><b>Unit ${ui + 1} · ${u.title}</b><span class="muted">${u.desc}</span><span class="spacer"></span><span class="muted small">${ud}/${u.lessons.length}</span></div>
+          <div class="lessons">${u.lessons.map(l => {
+            const r = game.lessons[l.id], open = this.unlocked(l.index), isNext = !allDone && l === nx;
+            return `<button class="lesson${r ? ' done' : ''}${isNext ? ' next' : ''}${open ? '' : ' locked'}" data-l="${l.index}" ${open ? '' : 'disabled'}>
+              <span class="ln">${r ? '✓' : open ? l.num : '🔒'}</span><span><b>${l.title}</b><span class="st">${r ? '★'.repeat(r.stars) + '☆'.repeat(3 - r.stars) : ''}</span></span></button>`;
+          }).join('')}</div></div>`;
+      }).join('')}`;
+    $('#lnGo').onclick = () => this.startLesson(this.nextIndex());
+    P().querySelectorAll('.lesson[data-l]').forEach(b => b.onclick = () => this.startLesson(+b.dataset.l));
+    const cur = P().querySelector('.lesson.next'); if (cur && done) cur.closest('.unit').scrollIntoView({ block: 'nearest' });
+  },
+  startLesson(i) {
+    clearTimeout(this.timer);
+    Object.assign(this, { lesson: LESSONS[i], si: 0, mistakes: 0, view: 'lesson', busy: false });
+    this.startStep();
+  },
+  startStep() {
+    clearTimeout(this.timer); clearTargets(); clearDemo(); this.busy = false;
+    const st = this.step = this.lesson.steps[this.si];
+    this.k = st.key ? keyBy(st.key, st.mode || 'major') : key;
+    if (st.key && this.k.id !== key.id) setKey(this.k.idx, this.k.mode, this.k.alt);
+    Object.assign(this, { pos: 0, prev: null, prevLow: null, bad: false, count: 0 });
+    if (st.t === 'seq') this.targets = st.targets(this.k);
+    if (st.t === 'drill') this.newDrill();
+    if (st.t === 'quiz') this.newQuiz();
+    this.renderStep();
+  },
+  txt(p) { return typeof p === 'function' ? p(this.k) : p; },
+  renderStep() {
+    const L = this.lesson, st = this.step, n = L.steps.length, k = this.k;
+    let body = '';
+    if (st.t === 'read') body = `<div class="read">${st.html}</div><div class="row" style="margin-top:14px"><button class="primary" id="lnNext">Continue →</button>${st.demo ? '<button id="lnDemo">▶ Hear an example</button>' : ''}</div>`;
+    if (st.t === 'seq') body = `<div class="prompt" style="font-size:16px;color:var(--text)">${this.txt(st.prompt)}</div>
+      <div class="seq" id="lnSeq">${this.targets.map(t => `<div class="s"><b>${t.label}</b>${t.sub ? `<small>${t.sub}</small>` : ''}</div>`).join('')}</div>
+      <div class="feedback" id="lnFb"></div>
+      <div class="row"><button id="lnHear">▶ Hear it</button><button id="lnRestart">Start over</button>
+        <label class="toggle"><input type="checkbox" data-set="showHints" ${settings.showHints ? 'checked' : ''}> Show next on keyboard</label></div>`;
+    if (st.t === 'drill') body = `<div class="prompt">${this.txt(st.prompt)} · <b>${this.count} / ${st.n}</b></div>
+      <div class="big" style="margin-top:6px">${this.q.prompt}</div><div class="muted">${this.q.sub || '&nbsp;'}</div>
+      <div class="feedback" id="lnFb"></div>
+      <div class="row"><button id="lnShow">Show me</button><button id="lnHear">▶ Hear it</button></div>`;
+    if (st.t === 'quiz') body = `<div class="prompt">Answer on the piano · <b>${this.count} / ${st.n}</b></div>
+      <div style="font-size:21px;margin-top:6px">${this.q.text}</div><div id="qProg" class="muted small" style="min-height:20px;margin-top:6px"></div><div id="lnRes"></div>`;
+    if (st.t === 'loop') {
+      const p = PROGS[k.mode][st.prog];
+      body = `<div class="read">${st.text}</div>
+        <div class="result" style="background:var(--panel2);border-color:var(--line2)">Goal: <b>${st.loops} clean loop${st.loops > 1 ? 's' : ''} in a row</b> · ${p.name.split(': ')[1]} in ${k.label} at ${st.bpm} BPM${st.change ? ', changing key every loop' : ''}${st.smooth ? ', smooth inversions' : ''}${st.sev ? ', 7th chords' : ''}.</div>
+        <div class="row" style="margin-top:12px"><button class="primary" id="lnLoop">Start the challenge →</button></div>`;
+    }
+    P().innerHTML = `<div class="ln-top"><button class="ghost" id="lnExit" title="Back to the path">✕</button><div class="lbar"><i style="width:${this.si / n * 100}%"></i></div><span class="muted small">${L.num} · ${L.title}</span></div>${body}`;
+    $('#lnExit').onclick = () => { clearTimeout(this.timer); clearTargets(); clearDemo(); this.view = 'path'; this.renderPath(); };
+    if (st.t === 'read') { $('#lnNext').onclick = () => this.next(); if (st.demo) $('#lnDemo').onclick = () => this.demoTargets(st.demo()); }
+    if (st.t === 'seq') { $('#lnHear').onclick = () => this.demoTargets(this.targets); $('#lnRestart').onclick = () => this.startStep(); }
+    if (st.t === 'drill') {
+      $('#lnHear').onclick = () => this.demoTargets([this.q.target]);
+      $('#lnShow').onclick = () => { if (!this.bad) { this.bad = true; this.mistakes++; } this.showTarget(this.q.target); this.fb(this.q.explain); };
+    }
+    if (st.t === 'loop') $('#lnLoop').onclick = () => this.startLoop();
+    this.paintSeq();
+  },
+  next() { this.si++; if (this.si >= this.lesson.steps.length) this.lessonDone(); else this.startStep(); },
+  fb(text, cls = '') { const el = $('#lnFb'); if (el) { el.className = 'feedback ' + cls; el.innerHTML = text; } },
+  voicingOf(t, base = 55) { return t.midis || invVoicing(t.chord, t.inv ?? 0, base); },
+  showTarget(t) {
+    if (t.kind === 'note') hintPcs = new Set([t.pc]);
+    else targetMidis = new Set(this.voicingOf(t, t.climb && this.prevLow != null ? this.prevLow + 1 : 55));
+    renderKeyboardState();
+  },
+  paintSeq() {
+    if (this.view !== 'lesson' || this.step?.t !== 'seq') return;
+    document.querySelectorAll('#lnSeq .s').forEach((el, i) => { el.classList.toggle('done', i < this.pos); el.classList.toggle('cur', i === this.pos); });
+    targetPcs = new Set(); targetMidis = new Set(); hintPcs = new Set();
+    const t = this.targets[this.pos];
+    if (settings.showHints && t) { if (t.kind === 'note') targetPcs = new Set([t.pc]); else targetMidis = new Set(this.voicingOf(t, t.climb && this.prevLow != null ? this.prevLow + 1 : 55)); }
+    renderKeyboardState();
+  },
+  demoTargets(ts) {
+    let m = 59, ev = [];
+    ts.forEach((t, i) => {
+      if (t.kind === 'note') { const d = t.dir === 'down' ? -1 : 1; if (i === 0) { m = 59; while (mod(m, 12) !== t.pc) m++; } else { m += d; while (mod(m, 12) !== t.pc) m += d; } ev.push({ midis: [m], at: i * 0.3, dur: 0.32 }); }
+      else { const v = t.midis || invVoicing(t.chord, t.inv ?? 0, t.climb && i ? ev.at(-1).midis[0] + 1 : 55); ev.push({ midis: v, at: i * 0.9, dur: 0.85 }); }
+    });
+    playSequence(ev);
+  },
+  current() { const st = this.step; return st.t === 'seq' ? this.targets[this.pos] : st.t === 'drill' ? this.q.target : null; },
+  noteOn(m) {
+    if (this.view !== 'lesson' || this.busy) return;
+    if (this.step.t === 'quiz') return this.quizNote(m);
+    const t = this.current(); if (!t || t.kind !== 'note') return;
+    if (m === this.prev && this.step.t === 'seq') return;
+    const dirOk = this.prev == null || !t.dir || (t.dir === 'up' ? m > this.prev : m < this.prev);
+    if (m % 12 === t.pc && dirOk) { this.prev = m; this.hit(); }
+    else this.miss(m % 12 === t.pc ? `Right note, but keep going ${t.dir}.` : `That's ${pretty(spellPc(m % 12, this.k))}. Looking for ${t.label}.`, m);
+  },
+  heldChanged() {
+    if (this.view !== 'lesson' || this.busy) return;
+    if (!held.size) { this.bad = this.step.t === 'drill' ? this.bad : false; return; }
+    const t = this.current(); if (!t || t.kind !== 'chord') return;
+    const c = t.chord; let r;
+    if (t.inv != null) r = invMatch(c, t.inv);
+    else { const hp = [...heldPcs()]; r = hp.length < c.pcs.length ? null : sameSet(hp, c.pcs) ? 'ok' : hp.some(p => !c.pcs.includes(p)) ? 'wrong' : null; }
+    if (!r) return;
+    if (r === 'ok') {
+      const lo = Math.min(...held);
+      if (t.climb && this.prevLow != null && lo <= this.prevLow) return this.fb('Right shape. Now climb: play it higher than the last one.', 'bad');
+      this.prevLow = lo; return this.hit();
+    }
+    if (!this.bad) { this.bad = true; this.miss(t.inv != null ? invProblem(r, c, t.inv) : invProblem('wrong', c, 0)); }
+  },
+  miss(text, m) { this.mistakes++; this.fb(text, 'bad'); if (m != null) flashBad(m); },
+  hit() {
+    const st = this.step;
+    if (st.t === 'seq') {
+      this.pos++; this.fb(''); this.bad = false;
+      if (this.pos >= this.targets.length) return this.stepDone();
+      this.paintSeq();
+    } else if (st.t === 'drill') {
+      this.count++; this.fb('✓ ' + this.q.explain, 'ok'); this.busy = true; clearTargets();
+      if (this.count >= st.n) return this.stepDone();
+      this.timer = setTimeout(() => { this.busy = false; this.newDrill(); this.renderStep(); }, 900);
+    }
+  },
+  newDrill() {
+    let q, i = 0; do { q = this.step.gen(this.k); } while (this.q && q.prompt === this.q.prompt && i++ < 20);
+    this.q = q; this.prev = null; this.bad = false;
+  },
+  newQuiz() {
+    const st = this.step, g = Quiz.gens(() => keyBy(...pick(st.keys)), st.opts);
+    let q = null, i = 0; while (!q && i++ < 50) q = g[pick(st.gens)]();
+    this.q = q; this.got = new Set();
+  },
+  quizNote(m) {
+    const q = this.q, pc = m % 12;
+    let ok = null;
+    if (q.kind === 'single') ok = q.ans.includes(pc);
+    else if (!q.ans.includes(pc)) ok = false;
+    else { this.got.add(pc); $('#qProg').textContent = `${this.got.size} of ${q.ans.length}: ${[...this.got].map(p => pretty(spellPc(p, q.k))).join(' ')}`; if (this.got.size === q.ans.length) ok = true; }
+    if (ok === null) return;
+    this.busy = true;
+    if (ok) this.count++; else { this.mistakes++; hintPcs = new Set(q.ans); renderKeyboardState(); }
+    $('#lnRes').innerHTML = `<div class="result${ok ? '' : ' bad'}">${ok ? '✓ Correct. ' : `✗ You played ${pretty(spellPc(pc, q.k))}. `}${q.explain}</div>`;
+    this.timer = setTimeout(() => {
+      this.busy = false; clearTargets();
+      if (this.count >= this.step.n) return this.next();
+      this.newQuiz(); this.renderStep();
+    }, ok ? 1800 : 3600);
+  },
+  stepDone() {
+    this.busy = true; clearTargets();
+    if (this.step.t !== 'drill') this.fb('✓ Nice!', 'ok');
+    this.timer = setTimeout(() => { this.busy = false; this.next(); }, 900);
+  },
+  startLoop() {
+    const st = this.step, k = this.k;
+    const keys = ['prog', 'loopBpm', 'loopBpc', 'loopSmooth', 'sevenths', 'loopChangeAfter', 'nextDir', 'loopSpeedUp', 'loopAutoRestart'];
+    this.saved = Object.fromEntries(keys.map(x => [x, settings[x]]));
+    Object.assign(settings, { prog: st.prog, loopBpm: st.bpm, loopBpc: st.bpc, loopSmooth: !!st.smooth, sevenths: !!st.sev, loopChangeAfter: st.change || 0, nextDir: st.dir || 'cw', loopSpeedUp: false, loopAutoRestart: true });
+    setKey(k.idx, k.mode, k.alt);
+    this.loopGoal = { loops: st.loops };
+    setMode('loop');
+  },
+  restoreSettings() { if (this.saved) { Object.assign(settings, this.saved); this.saved = null; store.settings = settings; save(); renderInfo(); } },
+  abortLoop() { this.loopGoal = null; this.restoreSettings(); },
+  loopReached() {
+    Loop.halt(); Loop.phase = 'idle'; clearTargets();
+    this.loopGoal = null; this.restoreSettings();
+    toast('🎯 Lesson goal reached!', 'big');
+    curMode = 'learn'; document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.mode === 'learn'));
+    this.renderStep(); this.stepDone();
+  },
+  lessonDone() {
+    const L = this.lesson, stars = this.mistakes === 0 ? 3 : this.mistakes <= 3 ? 2 : 1;
+    const prev = game.lessons[L.id], first = !prev, xp = first ? 10 + stars * 5 : 5;
+    game.lessons[L.id] = { stars: Math.max(stars, prev?.stars || 0), date: today() };
+    save(); this.view = 'done'; clearTargets(); chime();
+    P().innerHTML = `<div class="done-screen"><div class="stars-big">${'★'.repeat(stars)}<span style="color:var(--line2)">${'★'.repeat(3 - stars)}</span></div>
+      <div class="big">Lesson complete!</div>
+      <div class="muted" style="margin-top:6px">${L.num} ${L.title} · ${this.mistakes} mistake${this.mistakes === 1 ? '' : 's'}${stars < 3 ? ' · play it again with no mistakes for 3 stars' : ''}</div>
+      <div class="row" style="justify-content:center;margin-top:18px">${L.index + 1 < LESSONS.length ? '<button class="primary" id="lnNextL">Next lesson →</button>' : ''}<button id="lnAgain">Play again</button><button id="lnPath">Back to the path</button></div></div>`;
+    if ($('#lnNextL')) $('#lnNextL').onclick = () => this.startLesson(L.index + 1);
+    $('#lnAgain').onclick = () => this.startLesson(L.index);
+    $('#lnPath').onclick = () => { this.view = 'path'; this.renderPath(); };
+    addXP(xp);
+    if (first && L.unit.lessons.every(l => game.lessons[l.id])) toast(`🎓 Unit ${L.ui + 1} complete: ${L.unit.title}!`, 'big');
+  },
+};
+
+const modes = { learn: Learn, explore: Explore, scales: Scales, chords: Chords, inversions: Inversions, progressions: Progs, loop: Loop, quiz: Quiz, progress: ProgressTab };
+let curMode = 'learn';
 function setMode(m) {
   modes[curMode]?.leave?.();
+  if (m !== curMode || !store.settings.lastMode) setSetting('lastMode', m);
   clearTimeout(autoTimer); clearInterval(Scales.tick); clearDemo();
   curMode = m;
   document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.mode === m));
   const tb = $('#tabs'), on = tb.querySelector('.on');   // keep the active tab visible on narrow screens
-  if (on && (on.offsetLeft < tb.scrollLeft || on.offsetLeft + on.offsetWidth > tb.scrollLeft + tb.clientWidth)) tb.scrollLeft = on.offsetLeft - 20;
+  if (on) { const a = on.getBoundingClientRect(), b = tb.getBoundingClientRect(); if (a.left < b.left || a.right > b.right) tb.scrollLeft += a.left - b.left - 20; }
   modes[m].enter();
 }
 $('#tabs').addEventListener('click', e => { const b = e.target.closest('button'); if (b) setMode(b.dataset.mode); });
@@ -1876,7 +2313,7 @@ $('#echoMidi').onchange = e => { setSetting('echo', e.target.checked); if (e.tar
 renderGameBar();
 buildKeyboard();
 setKey(0, 'major');
-setMode('explore');
+setMode(modes[settings.lastMode] ? settings.lastMode : 'learn');
 // Try to connect silently (works without a prompt once allowed)
 if (navigator.permissions && navigator.requestMIDIAccess) {
   navigator.permissions.query({ name: 'midi' }).then(p => { if (p.state === 'granted') connectMidi(); }).catch(() => {});
